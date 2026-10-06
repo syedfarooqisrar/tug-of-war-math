@@ -180,7 +180,7 @@ class _GameScreenState extends State<GameScreen> {
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(14),
                                       boxShadow: [
-                                        BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 6, offset: const Offset(0, 3)),
+                                        BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 6, offset: const Offset(0, 3)),
                                       ],
                                     ),
                                     child: Row(
@@ -207,7 +207,7 @@ class _GameScreenState extends State<GameScreen> {
                                         color: Colors.white,
                                         borderRadius: BorderRadius.circular(16),
                                         boxShadow: [
-                                          BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 10, offset: const Offset(0, 5)),
+                                          BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 5)),
                                         ],
                                       ),
                                       clipBehavior: Clip.antiAlias,

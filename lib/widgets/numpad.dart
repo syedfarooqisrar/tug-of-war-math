@@ -98,7 +98,7 @@ class _NumButtonState extends State<_NumButton> {
                 ? []
                 : [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                       offset: const Offset(0, 3),
                     ),
                   ],

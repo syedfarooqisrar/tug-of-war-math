@@ -28,7 +28,7 @@ class _StartScreenState extends State<StartScreen> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: selected ? AppColors.team1Dark : Colors.grey.shade300, width: 2),
               boxShadow: selected
-                  ? [BoxShadow(color: AppColors.team1.withOpacity(0.4), blurRadius: 6, offset: const Offset(0, 2))]
+                  ? [BoxShadow(color: AppColors.team1.withValues(alpha: 0.4), blurRadius: 6, offset: const Offset(0, 2))]
                   : [],
             ),
             alignment: Alignment.center,

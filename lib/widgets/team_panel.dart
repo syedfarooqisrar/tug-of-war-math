@@ -35,7 +35,7 @@ class TeamPanel extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: color.withOpacity(0.28), blurRadius: 16, offset: const Offset(0, 8)),
+          BoxShadow(color: color.withValues(alpha: 0.28), blurRadius: 16, offset: const Offset(0, 8)),
         ],
       ),
       clipBehavior: Clip.antiAlias,
@@ -82,7 +82,7 @@ class TeamPanel extends StatelessWidget {
                     height: 38,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      border: Border.all(color: color.withOpacity(0.4), width: 2),
+                      border: Border.all(color: color.withValues(alpha: 0.4), width: 2),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     alignment: Alignment.center,
