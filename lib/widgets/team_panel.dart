@@ -74,7 +74,10 @@ class TeamPanel extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                     ),
                     alignment: Alignment.center,
-                    child: Text(questionText, style: AppText.heading(size: 22)),
+                       child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(questionText, style: AppText.heading(size: 22)),
+                      ),
                   ),
                   const SizedBox(height: 8),
                   Container(

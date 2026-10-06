@@ -32,6 +32,13 @@ class LayoutConstants {
   static const double panelGap = 12;
   static const double cardRadius = 24;
   static const double startCardWidth = 420;
+  
+  // Responsive layout
+  static const double wideMinWidth = 700;
+  static const double titleMinHeight = 520;
+  static const double compactBoardMaxWidth = 560;
+  static const double compactSidePadding = 12;
+  static const double compactRopeHeight = 150;
 }
 
 /// Every text shown to the player. Later we will replace these with

@@ -73,6 +73,8 @@ class _GameScreenState extends State<GameScreen> {
     super.dispose();
   }
 
+  // ---------- Small building blocks ----------
+
   Widget _scoreboardChip(String label, int score, Color color) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -171,6 +173,74 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  // ---------- The two board layouts ----------
+
+  /// Tablet landscape, laptop, web: panel | rope | panel in one row.
+  Widget _wideBoard() {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxWidth: LayoutConstants.boardMaxWidth,
+        maxHeight: LayoutConstants.boardMaxHeight,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(flex: 2, child: _teamPanel(1)),
+          const SizedBox(width: LayoutConstants.panelGap),
+          Expanded(
+            flex: 3,
+            child: Column(
+              children: [
+                _scoreboard(),
+                const SizedBox(height: 8),
+                Expanded(child: _ropeCard()),
+              ],
+            ),
+          ),
+          const SizedBox(width: LayoutConstants.panelGap),
+          Expanded(flex: 2, child: _teamPanel(2)),
+        ],
+      ),
+    );
+  }
+
+  /// Phone in portrait, narrow window: scoreboard and rope on top,
+  /// the two team panels side by side below.
+  Widget _compactBoard() {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxWidth: LayoutConstants.compactBoardMaxWidth,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: LayoutConstants.compactSidePadding,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _scoreboard(),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: LayoutConstants.compactRopeHeight,
+              child: _ropeCard(),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: _teamPanel(1)),
+                  const SizedBox(width: LayoutConstants.panelGap),
+                  Expanded(child: _teamPanel(2)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -179,45 +249,41 @@ class _GameScreenState extends State<GameScreen> {
         return Scaffold(
           body: FieldBackground(
             child: SafeArea(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
-                      '🏆 ${AppStrings.appTitle.toUpperCase()}',
-                      style: AppText.heading(size: 18, color: AppColors.team1Dark),
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: LayoutConstants.boardMaxWidth,
-                          maxHeight: LayoutConstants.boardMaxHeight,
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(flex: 2, child: _teamPanel(1)),
-                            const SizedBox(width: LayoutConstants.panelGap),
-                            Expanded(
-                              flex: 3,
-                              child: Column(
-                                children: [
-                                  _scoreboard(),
-                                  const SizedBox(height: 8),
-                                  Expanded(child: _ropeCard()),
-                                ],
-                              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide =
+                      constraints.maxWidth >= LayoutConstants.wideMinWidth &&
+                          constraints.maxWidth > constraints.maxHeight;
+                  final showTitle =
+                      constraints.maxHeight >= LayoutConstants.titleMinHeight;
+
+                  return Column(
+                    children: [
+                      if (showTitle)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Text(
+                            '🏆 ${AppStrings.appTitle.toUpperCase()}',
+                            style: AppText.heading(
+                              size: 18,
+                              color: AppColors.team1Dark,
                             ),
-                            const SizedBox(width: LayoutConstants.panelGap),
-                            Expanded(flex: 2, child: _teamPanel(2)),
-                          ],
+                          ),
+                        ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: isWide
+                              ? Center(child: _wideBoard())
+                              : Align(
+                                  alignment: Alignment.topCenter,
+                                  child: _compactBoard(),
+                                ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ),
