@@ -1,8 +1,8 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
+import '../core/constants/app_constants.dart';
+import '../game/game_controller.dart';
 import '../game/tug_of_war_game.dart';
-import '../models/question.dart';
 import '../theme/app_theme.dart';
 import '../widgets/team_panel.dart';
 import '../widgets/win_dialog.dart';
@@ -24,87 +24,41 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
+  late final GameController controller;
   late final TugOfWarGame game;
-  late Question q1;
-  late Question q2;
-  String input1 = '';
-  String input2 = '';
-  int score1 = 0;
-  int score2 = 0;
-  late int timeLeft;
-  Timer? timer;
-  bool gameOver = false;
+  bool _dialogShown = false;
 
   @override
   void initState() {
     super.initState();
+    controller = GameController(
+      maxTable: widget.maxTable,
+      roundSeconds: widget.roundSeconds,
+      winPulls: widget.winPulls,
+    );
     game = TugOfWarGame();
-    q1 = Question.random(maxTable: widget.maxTable);
-    q2 = Question.random(maxTable: widget.maxTable);
-    timeLeft = widget.roundSeconds;
-    _startTimer();
+    controller.addListener(_onControllerChanged);
+    controller.start();
   }
 
-  void _startTimer() {
-    timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) return;
-      setState(() => timeLeft--);
-      if (timeLeft <= 0) {
-        t.cancel();
-        _endGame(score1 == score2 ? 0 : (score1 > score2 ? 1 : 2));
-      }
-    });
+  /// Runs every time the controller changes (score, timer, winner).
+  void _onControllerChanged() {
+    if (game.isLoaded) game.updatePull(controller.pull);
+
+    if (controller.isFinished && !_dialogShown && mounted) {
+      _dialogShown = true;
+      _showWinDialog();
+    }
   }
 
-  void _updateRope() {
-    final diff = (score1 - score2).toDouble();
-    final pull = (diff / widget.winPulls).clamp(-1.0, 1.0);
-    game.updatePull(pull);
-  }
-
-  void _submit(int team) {
-    if (gameOver) return;
-    final input = team == 1 ? input1 : input2;
-    if (input.isEmpty) return;
-    final question = team == 1 ? q1 : q2;
-    final correct = int.tryParse(input) == question.answer;
-
-    setState(() {
-      if (correct) {
-        if (team == 1) {
-          score1++;
-          q1 = Question.random(maxTable: widget.maxTable);
-          input1 = '';
-        } else {
-          score2++;
-          q2 = Question.random(maxTable: widget.maxTable);
-          input2 = '';
-        }
-        _updateRope();
-      } else {
-        if (team == 1) {
-          input1 = '';
-        } else {
-          input2 = '';
-        }
-      }
-    });
-
-    if (score1 - score2 >= widget.winPulls) _endGame(1);
-    if (score2 - score1 >= widget.winPulls) _endGame(2);
-  }
-
-  void _endGame(int winner) {
-    if (gameOver) return;
-    gameOver = true;
-    timer?.cancel();
+  void _showWinDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => WinDialog(
-        winner: winner,
-        score1: score1,
-        score2: score2,
+        winner: controller.winner,
+        score1: controller.scoreFor(1),
+        score2: controller.scoreFor(2),
         onBackToMenu: () => Navigator.of(context)
           ..pop()
           ..pop(),
@@ -114,7 +68,8 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
-    timer?.cancel();
+    controller.removeListener(_onControllerChanged);
+    controller.dispose();
     super.dispose();
   }
 
@@ -122,129 +77,152 @@ class _GameScreenState extends State<GameScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: AppText.body(size: 10, weight: FontWeight.w700, color: Colors.grey.shade600)),
+        Text(
+          label,
+          style: AppText.body(
+            size: 10,
+            weight: FontWeight.w700,
+            color: Colors.grey.shade600,
+          ),
+        ),
         Text('$score', style: AppText.heading(size: 18, color: color)),
       ],
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final urgent = timeLeft <= 10;
+  Widget _teamPanel(int team) {
+    final isTeam1 = team == 1;
+    return TeamPanel(
+      teamLabel: isTeam1 ? AppStrings.team1 : AppStrings.team2,
+      flagEmoji: isTeam1 ? '🔵' : '🔴',
+      color: isTeam1 ? AppColors.team1 : AppColors.team2,
+      lightColor: isTeam1 ? AppColors.team1Light : AppColors.team2Light,
+      score: controller.scoreFor(team),
+      questionText: controller.questionFor(team).text,
+      currentInput: controller.inputFor(team),
+      onDigit: (digit) => controller.pressDigit(team, digit),
+      onClear: () => controller.clearInput(team),
+      onSubmit: () => controller.submit(team),
+    );
+  }
 
-    return Scaffold(
-      body: FieldBackground(
-        child: SafeArea(
-          child: Column(
+  Widget _scoreboard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _scoreboardChip(
+            AppStrings.team1.toUpperCase(),
+            controller.scoreFor(1),
+            AppColors.team1,
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Text('🏆 TUG OF WAR: MATHEMATICS',
-                    style: AppText.heading(size: 18, color: AppColors.team1Dark)),
-              ),
-              // Fixed-size centered game board — does NOT stretch to fill the screen.
-              Expanded(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 820, maxHeight: 420),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: TeamPanel(
-                                teamLabel: 'Team 1',
-                                flagEmoji: '🔵',
-                                color: AppColors.team1,
-                                lightColor: AppColors.team1Light,
-                                score: score1,
-                                questionText: q1.text,
-                                currentInput: input1,
-                                onDigit: (d) =>
-                                    setState(() => input1 = input1.length < 3 ? input1 + d : input1),
-                                onClear: () => setState(() => input1 = ''),
-                                onSubmit: () => _submit(1),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 3,
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(14),
-                                      boxShadow: [
-                                        BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 6, offset: const Offset(0, 3)),
-                                      ],
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        _scoreboardChip('TEAM 1', score1, AppColors.team1),
-                                        Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Text('⏱', style: TextStyle(fontSize: 12)),
-                                            Text('$timeLeft',
-                                                style: AppText.heading(size: 15, color: urgent ? AppColors.team2 : AppColors.ink)),
-                                          ],
-                                        ),
-                                        _scoreboardChip('TEAM 2', score2, AppColors.team2),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Expanded(
-                                    child: Container(
-                                      width: double.infinity,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(16),
-                                        boxShadow: [
-                                          BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 5)),
-                                        ],
-                                      ),
-                                      clipBehavior: Clip.antiAlias,
-                                      child: GameWidget(game: game),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 2,
-                              child: TeamPanel(
-                                teamLabel: 'Team 2',
-                                flagEmoji: '🔴',
-                                color: AppColors.team2,
-                                lightColor: AppColors.team2Light,
-                                score: score2,
-                                questionText: q2.text,
-                                currentInput: input2,
-                                onDigit: (d) =>
-                                    setState(() => input2 = input2.length < 3 ? input2 + d : input2),
-                                onClear: () => setState(() => input2 = ''),
-                                onSubmit: () => _submit(2),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
+              const Text('⏱', style: TextStyle(fontSize: 12)),
+              Text(
+                '${controller.timeLeft}',
+                style: AppText.heading(
+                  size: 15,
+                  color: controller.isUrgent ? AppColors.team2 : AppColors.ink,
                 ),
               ),
             ],
           ),
-        ),
+          _scoreboardChip(
+            AppStrings.team2.toUpperCase(),
+            controller.scoreFor(2),
+            AppColors.team2,
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _ropeCard() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: GameWidget(game: game),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        return Scaffold(
+          body: FieldBackground(
+            child: SafeArea(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      '🏆 ${AppStrings.appTitle.toUpperCase()}',
+                      style: AppText.heading(size: 18, color: AppColors.team1Dark),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: LayoutConstants.boardMaxWidth,
+                          maxHeight: LayoutConstants.boardMaxHeight,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(flex: 2, child: _teamPanel(1)),
+                            const SizedBox(width: LayoutConstants.panelGap),
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                children: [
+                                  _scoreboard(),
+                                  const SizedBox(height: 8),
+                                  Expanded(child: _ropeCard()),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: LayoutConstants.panelGap),
+                            Expanded(flex: 2, child: _teamPanel(2)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
