@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import '../game/tug_of_war_game.dart';
 import '../models/question.dart';
+import '../theme/app_theme.dart';
 import '../widgets/team_panel.dart';
+import '../widgets/win_dialog.dart';
 
 class GameScreen extends StatefulWidget {
   final int maxTable;
@@ -99,17 +101,13 @@ class _GameScreenState extends State<GameScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: Text(winner == 0 ? "It's a tie!" : 'Team $winner wins! 🏆'),
-        content: Text('Team 1: $score1    Team 2: $score2'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context)
-              ..pop()
-              ..pop(),
-            child: const Text('Back to menu'),
-          ),
-        ],
+      builder: (_) => WinDialog(
+        winner: winner,
+        score1: score1,
+        score2: score2,
+        onBackToMenu: () => Navigator.of(context)
+          ..pop()
+          ..pop(),
       ),
     );
   }
@@ -120,54 +118,131 @@ class _GameScreenState extends State<GameScreen> {
     super.dispose();
   }
 
+  Widget _scoreboardChip(String label, int score, Color color) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: AppText.body(size: 10, weight: FontWeight.w700, color: Colors.grey.shade600)),
+        Text('$score', style: AppText.heading(size: 18, color: color)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final urgent = timeLeft <= 10;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFDFF1FF),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text('⏱ $timeLeft',
-            style: const TextStyle(color: Color(0xFF0B3D91), fontWeight: FontWeight.bold)),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 4,
-              child: TeamPanel(
-                teamLabel: 'Team 1',
-                color: const Color(0xFF2461E8),
-                lightColor: const Color(0xFFE3ECFF),
-                score: score1,
-                questionText: q1.text,
-                currentInput: input1,
-                onDigit: (d) => setState(() => input1 = input1.length < 3 ? input1 + d : input1),
-                onClear: () => setState(() => input1 = ''),
-                onSubmit: () => _submit(1),
+      body: FieldBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text('🏆 TUG OF WAR: MATHEMATICS',
+                    style: AppText.heading(size: 18, color: AppColors.team1Dark)),
               ),
-            ),
-            SizedBox(
-              width: 140,
-              child: GameWidget(game: game),
-            ),
-            Expanded(
-              flex: 4,
-              child: TeamPanel(
-                teamLabel: 'Team 2',
-                color: const Color(0xFFE8432B),
-                lightColor: const Color(0xFFFFE6E0),
-                score: score2,
-                questionText: q2.text,
-                currentInput: input2,
-                onDigit: (d) => setState(() => input2 = input2.length < 3 ? input2 + d : input2),
-                onClear: () => setState(() => input2 = ''),
-                onSubmit: () => _submit(2),
+              // Fixed-size centered game board — does NOT stretch to fill the screen.
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 820, maxHeight: 420),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: TeamPanel(
+                                teamLabel: 'Team 1',
+                                flagEmoji: '🔵',
+                                color: AppColors.team1,
+                                lightColor: AppColors.team1Light,
+                                score: score1,
+                                questionText: q1.text,
+                                currentInput: input1,
+                                onDigit: (d) =>
+                                    setState(() => input1 = input1.length < 3 ? input1 + d : input1),
+                                onClear: () => setState(() => input1 = ''),
+                                onSubmit: () => _submit(1),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                children: [
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(14),
+                                      boxShadow: [
+                                        BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 6, offset: const Offset(0, 3)),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        _scoreboardChip('TEAM 1', score1, AppColors.team1),
+                                        Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Text('⏱', style: TextStyle(fontSize: 12)),
+                                            Text('$timeLeft',
+                                                style: AppText.heading(size: 15, color: urgent ? AppColors.team2 : AppColors.ink)),
+                                          ],
+                                        ),
+                                        _scoreboardChip('TEAM 2', score2, AppColors.team2),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Expanded(
+                                    child: Container(
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 10, offset: const Offset(0, 5)),
+                                        ],
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: GameWidget(game: game),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 2,
+                              child: TeamPanel(
+                                teamLabel: 'Team 2',
+                                flagEmoji: '🔴',
+                                color: AppColors.team2,
+                                lightColor: AppColors.team2Light,
+                                score: score2,
+                                questionText: q2.text,
+                                currentInput: input2,
+                                onDigit: (d) =>
+                                    setState(() => input2 = input2.length < 3 ? input2 + d : input2),
+                                onClear: () => setState(() => input2 = ''),
+                                onSubmit: () => _submit(2),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

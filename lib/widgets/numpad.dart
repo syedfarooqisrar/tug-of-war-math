@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class Numpad extends StatelessWidget {
   final Color accentColor;
@@ -16,33 +17,49 @@ class Numpad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clr', '0', 'go'];
+    final rows = [
+      ['1', '2', '3'],
+      ['4', '5', '6'],
+      ['7', '8', '9'],
+      ['clr', '0', 'go'],
+    ];
 
-    return GridView.count(
-      crossAxisCount: 3,
-      shrinkWrap: true,
-      mainAxisSpacing: 6,
-      crossAxisSpacing: 6,
-      physics: const NeverScrollableScrollPhysics(),
-      children: keys.map((key) {
-        if (key == 'clr') {
-          return _NumButton(label: '✕', color: Colors.grey.shade400, onTap: onClear);
-        }
-        if (key == 'go') {
-          return _NumButton(label: '✓', color: accentColor, onTap: onSubmit);
-        }
-        return _NumButton(
-          label: key,
-          color: Colors.white,
-          textColor: Colors.black87,
-          onTap: () => onDigit(key),
+    return Column(
+      children: rows.map((row) {
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3.5),
+            child: Row(
+              children: row.map((key) {
+                Widget button;
+                if (key == 'clr') {
+                  button = _NumButton(label: '✕', color: Colors.grey.shade400, onTap: onClear);
+                } else if (key == 'go') {
+                  button = _NumButton(label: '✓', color: accentColor, onTap: onSubmit);
+                } else {
+                  button = _NumButton(
+                    label: key,
+                    color: Colors.white,
+                    textColor: AppColors.ink,
+                    onTap: () => onDigit(key),
+                  );
+                }
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3.5),
+                    child: button,
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
         );
       }).toList(),
     );
   }
 }
 
-class _NumButton extends StatelessWidget {
+class _NumButton extends StatefulWidget {
   final String label;
   final Color color;
   final Color textColor;
@@ -56,19 +73,38 @@ class _NumButton extends StatelessWidget {
   });
 
   @override
+  State<_NumButton> createState() => _NumButtonState();
+}
+
+class _NumButtonState extends State<_NumButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(10),
-      elevation: 2,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _pressed ? 0.90 : 1.0,
+        duration: const Duration(milliseconds: 90),
+        curve: Curves.easeOut,
+        child: Container(
+          decoration: BoxDecoration(
+            color: widget.color,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: _pressed
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.15),
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
           ),
+          alignment: Alignment.center,
+          child: Text(widget.label, style: AppText.number(size: 22, color: widget.textColor)),
         ),
       ),
     );

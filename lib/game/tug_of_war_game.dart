@@ -1,10 +1,12 @@
 import 'package:flame/game.dart';
 import 'rope_component.dart';
+import 'package:flutter/material.dart';
 
-/// The Flame game that renders just the center tug-of-war track.
-/// Everything else (score, numpad, timer) is plain Flutter UI around it.
 class TugOfWarGame extends FlameGame {
   late final RopeComponent rope;
+
+  @override
+  Color backgroundColor() => Colors.transparent;
 
   @override
   Future<void> onLoad() async {
@@ -22,7 +24,6 @@ class TugOfWarGame extends FlameGame {
     }
   }
 
-  /// pull: -1.0 (Team 2 winning) .. 1.0 (Team 1 winning)
   void updatePull(double pull) {
     rope.setPull(pull);
   }

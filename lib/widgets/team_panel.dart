@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 import 'numpad.dart';
 
 class TeamPanel extends StatelessWidget {
   final String teamLabel;
+  final String flagEmoji;
   final Color color;
   final Color lightColor;
   final int score;
@@ -15,6 +17,7 @@ class TeamPanel extends StatelessWidget {
   const TeamPanel({
     super.key,
     required this.teamLabel,
+    required this.flagEmoji,
     required this.color,
     required this.lightColor,
     required this.score,
@@ -29,55 +32,79 @@ class TeamPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: lightColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color, width: 3),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: color.withOpacity(0.28), blurRadius: 16, offset: const Offset(0, 8)),
+        ],
       ),
-      padding: const EdgeInsets.all(10),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(teamLabel,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: color)),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(20)),
-                child: Text('$score',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
+          // Solid color header bar — gives strong contrast instead of flat pastel
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-            alignment: Alignment.center,
-            child: Text(questionText,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            width: double.infinity,
-            height: 36,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.grey.shade300, width: 2),
-              borderRadius: BorderRadius.circular(10),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            color: color,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(flagEmoji, style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: 6),
+                Text(teamLabel, style: AppText.heading(size: 15, color: Colors.white)),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                  child: Text('$score', style: AppText.number(size: 16, color: color)),
+                ),
+              ],
             ),
-            alignment: Alignment.center,
-            child: Text(currentInput, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           ),
-          const SizedBox(height: 8),
           Expanded(
-            child: Numpad(
-              accentColor: color,
-              onDigit: onDigit,
-              onClear: onClear,
-              onSubmit: onSubmit,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: lightColor,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(questionText, style: AppText.heading(size: 22)),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: color.withOpacity(0.4), width: 2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      currentInput.isEmpty ? '—' : currentInput,
+                      style: AppText.number(
+                        size: 20,
+                        color: currentInput.isEmpty ? Colors.grey.shade400 : AppColors.ink,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: Numpad(
+                      accentColor: color,
+                      onDigit: onDigit,
+                      onClear: onClear,
+                      onSubmit: onSubmit,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
