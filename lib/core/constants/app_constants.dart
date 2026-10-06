@@ -21,6 +21,9 @@ class GameConfig {
 
   // Timer
   static const int urgentSecondsThreshold = 10;
+  
+  // Countdown shown before every round (3, 2, 1, GO!)
+  static const int countdownSeconds = 3;
 }
 
 /// Sizes used by the game board layout.

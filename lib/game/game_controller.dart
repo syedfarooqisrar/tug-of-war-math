@@ -6,8 +6,11 @@ import '../models/question.dart';
 /// What happened when a team pressed the ✓ button.
 enum AnswerResult { ignored, correct, wrong }
 
-/// Holds every rule of one round: questions, typed answers, scores,
-/// the countdown timer and the winner. The screen only reads from it
+/// Which part of the round we are in.
+enum GamePhase { countdown, playing, finished }
+
+/// Holds every rule of one round: countdown, questions, typed answers,
+/// scores, the timer and the winner. The screen only reads from it
 /// and calls its methods.
 class GameController extends ChangeNotifier {
   GameController({
@@ -16,6 +19,7 @@ class GameController extends ChangeNotifier {
     required this.winPulls,
   }) {
     _timeLeft = roundSeconds;
+    _countdown = GameConfig.countdownSeconds;
     _question1 = _newQuestion();
     _question2 = _newQuestion();
   }
@@ -31,8 +35,10 @@ class GameController extends ChangeNotifier {
   int _score1 = 0;
   int _score2 = 0;
   late int _timeLeft;
+  late int _countdown;
   Timer? _timer;
-  int? _winner; // null = still playing, 0 = tie, 1 = team 1, 2 = team 2
+  GamePhase _phase = GamePhase.countdown;
+  int _winner = 0; // 0 = tie, 1 = team 1, 2 = team 2 (valid once finished)
 
   // ---------- Read-only state for the screen ----------
 
@@ -40,26 +46,33 @@ class GameController extends ChangeNotifier {
   String inputFor(int team) => team == 1 ? _input1 : _input2;
   int scoreFor(int team) => team == 1 ? _score1 : _score2;
 
+  GamePhase get phase => _phase;
+  bool get isCountingDown => _phase == GamePhase.countdown;
+  bool get isPlaying => _phase == GamePhase.playing;
+  bool get isFinished => _phase == GamePhase.finished;
+
+  /// 3, 2, 1, then 0 which means "GO!". Only meaningful while counting down.
+  int get countdownValue => _countdown;
+
   int get timeLeft => _timeLeft;
   bool get isUrgent => _timeLeft <= GameConfig.urgentSecondsThreshold;
-  bool get isFinished => _winner != null;
 
   /// 0 = tie, 1 = team 1, 2 = team 2. Only valid when [isFinished] is true.
-  int get winner => _winner ?? 0;
+  int get winner => _winner;
 
   /// Rope position: -1.0 means team 2 is winning fully, 1.0 means team 1.
   double get pull => ((_score1 - _score2) / winPulls).clamp(-1.0, 1.0);
 
   // ---------- Actions ----------
 
-  /// Starts the countdown. Call once when the round begins.
+  /// Begins the countdown. Call once when the screen opens.
   void start() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
   }
 
   void pressDigit(int team, String digit) {
-    if (isFinished) return;
+    if (!isPlaying) return;
     final current = inputFor(team);
     if (current.length >= GameConfig.maxAnswerDigits) return;
     _setInput(team, current + digit);
@@ -67,7 +80,7 @@ class GameController extends ChangeNotifier {
   }
 
   void clearInput(int team) {
-    if (isFinished) return;
+    if (!isPlaying) return;
     _setInput(team, '');
     notifyListeners();
   }
@@ -75,7 +88,7 @@ class GameController extends ChangeNotifier {
   /// Checks the typed answer. Returns what happened so the screen can
   /// react (animation, sound, and so on).
   AnswerResult submit(int team) {
-    if (isFinished) return AnswerResult.ignored;
+    if (!isPlaying) return AnswerResult.ignored;
     final typed = inputFor(team);
     if (typed.isEmpty) return AnswerResult.ignored;
 
@@ -100,11 +113,20 @@ class GameController extends ChangeNotifier {
   // ---------- Internal helpers ----------
 
   void _tick() {
-    if (isFinished) return;
-    _timeLeft--;
-    if (_timeLeft <= 0) {
-      _timeLeft = 0;
-      _finish(_score1 == _score2 ? 0 : (_score1 > _score2 ? 1 : 2));
+    switch (_phase) {
+      case GamePhase.countdown:
+        _countdown--; // 3 -> 2 -> 1 -> 0 ("GO!") -> -1 (round starts)
+        if (_countdown < 0) _phase = GamePhase.playing;
+        break;
+      case GamePhase.playing:
+        _timeLeft--;
+        if (_timeLeft <= 0) {
+          _timeLeft = 0;
+          _finish(_score1 == _score2 ? 0 : (_score1 > _score2 ? 1 : 2));
+        }
+        break;
+      case GamePhase.finished:
+        return;
     }
     notifyListeners();
   }
@@ -116,6 +138,7 @@ class GameController extends ChangeNotifier {
 
   void _finish(int winner) {
     _winner = winner;
+    _phase = GamePhase.finished;
     _timer?.cancel();
   }
 
