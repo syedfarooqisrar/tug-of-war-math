@@ -4,6 +4,7 @@ import '../core/constants/app_constants.dart';
 import '../game/game_controller.dart';
 import '../game/tug_of_war_game.dart';
 import '../theme/app_theme.dart';
+import '../widgets/countdown_overlay.dart';
 import '../widgets/team_panel.dart';
 import '../widgets/win_dialog.dart';
 
@@ -241,51 +242,64 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  /// The whole game board with its title, responsive to screen size.
+  Widget _board() {
+    return FieldBackground(
+      child: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide =
+                constraints.maxWidth >= LayoutConstants.wideMinWidth &&
+                    constraints.maxWidth > constraints.maxHeight;
+            final showTitle =
+                constraints.maxHeight >= LayoutConstants.titleMinHeight;
+
+            return Column(
+              children: [
+                if (showTitle)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      '🏆 ${AppStrings.appTitle.toUpperCase()}',
+                      style: AppText.heading(
+                        size: 18,
+                        color: AppColors.team1Dark,
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: isWide
+                        ? Center(child: _wideBoard())
+                        : Align(
+                            alignment: Alignment.topCenter,
+                            child: _compactBoard(),
+                          ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
         return Scaffold(
-          body: FieldBackground(
-            child: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide =
-                      constraints.maxWidth >= LayoutConstants.wideMinWidth &&
-                          constraints.maxWidth > constraints.maxHeight;
-                  final showTitle =
-                      constraints.maxHeight >= LayoutConstants.titleMinHeight;
-
-                  return Column(
-                    children: [
-                      if (showTitle)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          child: Text(
-                            '🏆 ${AppStrings.appTitle.toUpperCase()}',
-                            style: AppText.heading(
-                              size: 18,
-                              color: AppColors.team1Dark,
-                            ),
-                          ),
-                        ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: isWide
-                              ? Center(child: _wideBoard())
-                              : Align(
-                                  alignment: Alignment.topCenter,
-                                  child: _compactBoard(),
-                                ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
+          body: Stack(
+            children: [
+              Positioned.fill(child: _board()),
+              if (controller.isCountingDown)
+                Positioned.fill(
+                  child: CountdownOverlay(value: controller.countdownValue),
+                ),
+            ],
           ),
         );
       },
