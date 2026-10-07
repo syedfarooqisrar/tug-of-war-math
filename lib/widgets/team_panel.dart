@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import '../game/game_controller.dart' show AnswerResult;
 import '../theme/app_theme.dart';
 import 'numpad.dart';
 
-class TeamPanel extends StatelessWidget {
+class TeamPanel extends StatefulWidget {
   final String teamLabel;
   final String flagEmoji;
   final Color color;
@@ -13,6 +16,11 @@ class TeamPanel extends StatelessWidget {
   final ValueChanged<String> onDigit;
   final VoidCallback onClear;
   final VoidCallback onSubmit;
+
+  /// Result of this team's most recent answer, and a counter that goes up
+  /// on every answer. When the counter changes, the feedback plays.
+  final AnswerResult lastResult;
+  final int feedbackId;
 
   const TeamPanel({
     super.key,
@@ -26,10 +34,109 @@ class TeamPanel extends StatelessWidget {
     required this.onDigit,
     required this.onClear,
     required this.onSubmit,
+    this.lastResult = AnswerResult.ignored,
+    this.feedbackId = 0,
   });
 
   @override
+  State<TeamPanel> createState() => _TeamPanelState();
+}
+
+class _TeamPanelState extends State<TeamPanel>
+    with SingleTickerProviderStateMixin {
+  static const Color _flashGreen = Color(0xFF2ECC71);
+  static const Color _flashRed = Color(0xFFD32F2F);
+  static const Color _plusOneGreen = Color(0xFF1B8F4A);
+
+  late final AnimationController _anim;
+  AnswerResult? _playing;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant TeamPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.feedbackId != oldWidget.feedbackId &&
+        widget.lastResult != AnswerResult.ignored) {
+      _playing = widget.lastResult;
+      _anim.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      child: _panel(),
+      builder: (context, panel) {
+        final t = _anim.value;
+        final playing = _playing;
+
+        // Wrong answer: shake sideways, getting weaker over time.
+        final shake = playing == AnswerResult.wrong
+            ? math.sin(t * math.pi * 6) * 9 * (1 - t)
+            : 0.0;
+
+        return Transform.translate(
+          offset: Offset(shake, 0),
+          child: Stack(
+            fit: StackFit.expand,
+            clipBehavior: Clip.none,
+            children: [
+              panel!,
+              if (playing != null)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: (playing == AnswerResult.correct
+                                ? _flashGreen
+                                : _flashRed)
+                            .withValues(alpha: 0.38 * (1 - t)),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                  ),
+                ),
+              if (playing == AnswerResult.correct)
+                Positioned(
+                  top: 64 - 34 * t,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: 1 - t,
+                      child: Center(
+                        child: Text(
+                          '+1',
+                          style: AppText.heading(size: 34, color: _plusOneGreen),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _panel() {
+    final color = widget.color;
     final darkColor = Color.lerp(color, Colors.black, 0.22)!;
 
     return LayoutBuilder(
@@ -72,9 +179,9 @@ class TeamPanel extends StatelessWidget {
                       Expanded(
                         child: Numpad(
                           accentColor: color,
-                          onDigit: onDigit,
-                          onClear: onClear,
-                          onSubmit: onSubmit,
+                          onDigit: widget.onDigit,
+                          onClear: widget.onClear,
+                          onSubmit: widget.onSubmit,
                         ),
                       ),
                     ],
@@ -96,7 +203,7 @@ class TeamPanel extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [color, darkColor],
+          colors: [widget.color, darkColor],
         ),
       ),
       child: FittedBox(
@@ -104,9 +211,12 @@ class TeamPanel extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(flagEmoji, style: const TextStyle(fontSize: 18)),
+            Text(widget.flagEmoji, style: const TextStyle(fontSize: 18)),
             const SizedBox(width: 6),
-            Text(teamLabel, style: AppText.heading(size: 16, color: Colors.white)),
+            Text(
+              widget.teamLabel,
+              style: AppText.heading(size: 16, color: Colors.white),
+            ),
             const SizedBox(width: 10),
             _scoreBadge(),
           ],
@@ -138,10 +248,10 @@ class TeamPanel extends StatelessWidget {
           child: child,
         ),
         child: Text(
-          '$score',
-          key: ValueKey(score),
+          '${widget.score}',
+          key: ValueKey(widget.score),
           textAlign: TextAlign.center,
-          style: AppText.number(size: 17, color: color),
+          style: AppText.number(size: 17, color: widget.color),
         ),
       ),
     );
@@ -155,16 +265,19 @@ class TeamPanel extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [lightColor, Colors.white],
+          colors: [widget.lightColor, Colors.white],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.25), width: 2),
+        border: Border.all(
+          color: widget.color.withValues(alpha: 0.25),
+          width: 2,
+        ),
       ),
       alignment: Alignment.center,
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Text(
-          questionText,
+          widget.questionText,
           style: AppText.number(size: tight ? 22 : 28),
         ),
       ),
@@ -174,22 +287,22 @@ class TeamPanel extends StatelessWidget {
   /// Shows what the team has typed. It lights up in the team color
   /// as soon as there is at least one digit.
   Widget _answerBox(bool tight) {
-    final hasInput = currentInput.isNotEmpty;
+    final hasInput = widget.currentInput.isNotEmpty;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       width: double.infinity,
       height: tight ? 36 : 46,
       decoration: BoxDecoration(
-        color: hasInput ? lightColor : Colors.white,
+        color: hasInput ? widget.lightColor : Colors.white,
         border: Border.all(
-          color: hasInput ? color : color.withValues(alpha: 0.35),
+          color: hasInput ? widget.color : widget.color.withValues(alpha: 0.35),
           width: 2.5,
         ),
         borderRadius: BorderRadius.circular(12),
       ),
       alignment: Alignment.center,
       child: Text(
-        hasInput ? currentInput : '—',
+        hasInput ? widget.currentInput : '—',
         style: AppText.number(
           size: tight ? 20 : 24,
           color: hasInput ? AppColors.ink : Colors.grey.shade400,
