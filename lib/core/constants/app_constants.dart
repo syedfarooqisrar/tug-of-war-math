@@ -66,4 +66,7 @@ class AppStrings {
   static const String backToMenu = 'Back to menu';
   static const String getReady = 'Get ready!';
   static const String go = 'GO!';
+  static const String paused = 'Paused';
+  static const String resume = 'Resume';
+  static const String quitGame = 'Quit game';
 }
