@@ -184,7 +184,31 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
-
+  /// Sound on/off button. Muting also turns off vibration.
+  Widget _muteButton() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: SoundService.instance.muted,
+      builder: (context, muted, _) {
+        return Material(
+          color: muted ? Colors.red.shade50 : Colors.grey.shade200,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: SoundService.instance.toggleMute,
+            child: SizedBox(
+              width: 34,
+              height: 34,
+              child: Icon(
+                muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                size: 20,
+                color: muted ? AppColors.team2 : AppColors.ink,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
   Widget _scoreboard() {
     return Container(
       width: double.infinity,
@@ -225,8 +249,10 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                 ],
               ),
-              const SizedBox(width: 10),
-              _pauseButton(),
+                 const SizedBox(width: 8),
+                 _pauseButton(),
+                 const SizedBox(width: 8),
+                 _muteButton(),
             ],
           ),
           _scoreboardChip(
