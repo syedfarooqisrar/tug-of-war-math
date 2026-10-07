@@ -36,15 +36,22 @@ class _Layout {
     w = size.x;
     h = size.y;
     horizon = h * 0.38;
-    groundY = h * 0.76;
-    height = math.min(h * 0.40, w * 0.27).clamp(36.0, 170.0).toDouble();
+    groundY = h * 0.78;
+    pullerCount = w >= 520 ? 3 : 2;
+    height = math.min(h * 0.42, w * 0.32).clamp(36.0, 190.0).toDouble();
     k = height / 110;
-    margin = w * 0.13;
+
+    // How far the last puller reaches from the rope center. The rope may
+    // only travel as far as that puller still fits inside the card.
+    final reach = (71 + 40.0 * (pullerCount - 1)) * k;
+    margin = math.min(reach + 6, w * 0.42).toDouble();
+
     knotX = w / 2 - pull * (w / 2 - margin);
     ropeY = groundY - 58 * k;
   }
 
   late final double w, h, horizon, groundY, height, k, margin, knotX, ropeY;
+  late final int pullerCount;
 }
 
 class _Puller {
@@ -147,10 +154,10 @@ class RopeComponent extends PositionComponent {
   // ---------- Puller data ----------
 
   List<_Puller> _pullersFor(int team, _Layout lay) {
-    final count = lay.w >= 360 ? 3 : 2;
-    final facing = team == 1 ? 1 : -1;
-    return List.generate(count, (i) {
-      final offset = (34 + 44 * i) * lay.k;
+      final count = lay.pullerCount;
+      final facing = team == 1 ? 1 : -1;
+      return List.generate(count, (i) {
+        final offset = (34 + 40 * i) * lay.k;
       final x = team == 1 ? lay.knotX - offset : lay.knotX + offset;
       return _Puller(x: x, facing: facing, team: team, index: i);
     });
