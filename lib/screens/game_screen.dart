@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import '../core/constants/app_constants.dart';
+import '../core/services/sound_service.dart';
 import '../game/game_controller.dart';
 import '../game/tug_of_war_game.dart';
 import '../theme/app_theme.dart';
@@ -30,6 +31,11 @@ class _GameScreenState extends State<GameScreen> {
   late final TugOfWarGame game;
   bool _dialogShown = false;
 
+  // What we already played a sound for, so each event sounds only once.
+  int _lastCountdown = -99;
+  int _lastFeedback1 = 0;
+  int _lastFeedback2 = 0;
+
   @override
   void initState() {
     super.initState();
@@ -41,16 +47,59 @@ class _GameScreenState extends State<GameScreen> {
     game = TugOfWarGame();
     controller.addListener(_onControllerChanged);
     controller.start();
+
+    // Load the sounds, then play the sound for the number on screen
+    // (the "3" of the countdown).
+    SoundService.instance.init().then((_) {
+      if (mounted) _syncSounds();
+    });
   }
 
   /// Runs every time the controller changes (score, timer, winner).
   void _onControllerChanged() {
     if (game.isLoaded) game.updatePull(controller.pull);
 
+    _syncSounds();
+
     if (controller.isFinished && !_dialogShown && mounted) {
       _dialogShown = true;
       _showWinDialog();
     }
+  }
+
+  /// Plays a sound for anything new that happened in the game.
+  void _syncSounds() {
+    final sound = SoundService.instance;
+
+    // 1. Countdown: tick for 3, 2, 1 and a special sound for GO!
+    if (controller.isCountingDown &&
+        controller.countdownValue != _lastCountdown) {
+      _lastCountdown = controller.countdownValue;
+      sound.play(_lastCountdown > 0 ? Sfx.tick : Sfx.go);
+    }
+
+    // 2. Answers: right or wrong sound. If this answer ended the round,
+    //    skip it and let the win sound play alone.
+    final justFinished = controller.isFinished && !_dialogShown;
+    for (final team in const [1, 2]) {
+      final id = controller.feedbackIdFor(team);
+      final last = team == 1 ? _lastFeedback1 : _lastFeedback2;
+      if (id != last) {
+        if (team == 1) {
+          _lastFeedback1 = id;
+        } else {
+          _lastFeedback2 = id;
+        }
+        if (!justFinished) {
+          final correct =
+              controller.lastResultFor(team) == AnswerResult.correct;
+          sound.play(correct ? Sfx.correct : Sfx.wrong);
+        }
+      }
+    }
+
+    // 3. End of the round.
+    if (justFinished) sound.play(Sfx.win);
   }
 
   void _showWinDialog() {
