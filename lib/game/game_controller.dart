@@ -7,7 +7,7 @@ import '../models/question.dart';
 enum AnswerResult { ignored, correct, wrong }
 
 /// Which part of the round we are in.
-enum GamePhase { countdown, playing, finished }
+enum GamePhase { countdown, playing, paused, finished }
 
 /// Holds every rule of one round: countdown, questions, typed answers,
 /// scores, the timer and the winner. The screen only reads from it
@@ -63,6 +63,7 @@ class GameController extends ChangeNotifier {
   GamePhase get phase => _phase;
   bool get isCountingDown => _phase == GamePhase.countdown;
   bool get isPlaying => _phase == GamePhase.playing;
+  bool get isPaused => _phase == GamePhase.paused;
   bool get isFinished => _phase == GamePhase.finished;
 
   /// 3, 2, 1, then 0 which means "GO!". Only meaningful while counting down.
@@ -83,6 +84,20 @@ class GameController extends ChangeNotifier {
   void start() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+  }
+
+  /// Freezes the round. Only works while the round is being played.
+  void pause() {
+    if (!isPlaying) return;
+    _phase = GamePhase.paused;
+    notifyListeners();
+  }
+
+  /// Continues a paused round.
+  void resume() {
+    if (!isPaused) return;
+    _phase = GamePhase.playing;
+    notifyListeners();
   }
 
   void pressDigit(int team, String digit) {
@@ -141,6 +156,7 @@ class GameController extends ChangeNotifier {
           _finish(_score1 == _score2 ? 0 : (_score1 > _score2 ? 1 : 2));
         }
         break;
+      case GamePhase.paused:
       case GamePhase.finished:
         return;
     }
