@@ -40,11 +40,25 @@ class GameController extends ChangeNotifier {
   GamePhase _phase = GamePhase.countdown;
   int _winner = 0; // 0 = tie, 1 = team 1, 2 = team 2 (valid once finished)
 
+  // Last answer result per team, plus a counter that goes up on every
+  // answer so the screen knows when to play a feedback animation.
+  AnswerResult _lastResult1 = AnswerResult.ignored;
+  AnswerResult _lastResult2 = AnswerResult.ignored;
+  int _feedbackId1 = 0;
+  int _feedbackId2 = 0;
+
   // ---------- Read-only state for the screen ----------
 
   Question questionFor(int team) => team == 1 ? _question1 : _question2;
   String inputFor(int team) => team == 1 ? _input1 : _input2;
   int scoreFor(int team) => team == 1 ? _score1 : _score2;
+
+  /// The result of the team's most recent answer.
+  AnswerResult lastResultFor(int team) =>
+      team == 1 ? _lastResult1 : _lastResult2;
+
+  /// Goes up by one on every answer, right or wrong.
+  int feedbackIdFor(int team) => team == 1 ? _feedbackId1 : _feedbackId2;
 
   GamePhase get phase => _phase;
   bool get isCountingDown => _phase == GamePhase.countdown;
@@ -93,7 +107,9 @@ class GameController extends ChangeNotifier {
     if (typed.isEmpty) return AnswerResult.ignored;
 
     final isCorrect = int.tryParse(typed) == questionFor(team).answer;
+    final result = isCorrect ? AnswerResult.correct : AnswerResult.wrong;
     _setInput(team, '');
+    _setFeedback(team, result);
 
     if (isCorrect) {
       if (team == 1) {
@@ -107,7 +123,7 @@ class GameController extends ChangeNotifier {
     }
 
     notifyListeners();
-    return isCorrect ? AnswerResult.correct : AnswerResult.wrong;
+    return result;
   }
 
   // ---------- Internal helpers ----------
@@ -147,6 +163,16 @@ class GameController extends ChangeNotifier {
       _input1 = value;
     } else {
       _input2 = value;
+    }
+  }
+
+  void _setFeedback(int team, AnswerResult result) {
+    if (team == 1) {
+      _lastResult1 = result;
+      _feedbackId1++;
+    } else {
+      _lastResult2 = result;
+      _feedbackId2++;
     }
   }
 
