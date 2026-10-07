@@ -70,3 +70,14 @@ class AppStrings {
   static const String resume = 'Resume';
   static const String quitGame = 'Quit game';
 }
+
+/// Sound files, relative to the assets/ folder.
+class SoundAssets {
+  SoundAssets._();
+
+  static const String correct = 'sounds/correct.wav';
+  static const String wrong = 'sounds/wrong.wav';
+  static const String tick = 'sounds/tick.wav';
+  static const String go = 'sounds/go.wav';
+  static const String win = 'sounds/win.wav';
+}
