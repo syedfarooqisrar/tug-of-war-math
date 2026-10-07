@@ -5,6 +5,7 @@ import '../game/game_controller.dart';
 import '../game/tug_of_war_game.dart';
 import '../theme/app_theme.dart';
 import '../widgets/countdown_overlay.dart';
+import '../widgets/pause_overlay.dart';
 import '../widgets/team_panel.dart';
 import '../widgets/win_dialog.dart';
 
@@ -67,6 +68,9 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  /// Leaves the game and goes back to the start screen.
+  void _quitGame() => Navigator.of(context).pop();
+
   @override
   void dispose() {
     controller.removeListener(_onControllerChanged);
@@ -111,6 +115,27 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  /// Round pause button. Faded and inactive unless the round is playing.
+  Widget _pauseButton() {
+    final enabled = controller.isPlaying;
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.35,
+      child: Material(
+        color: Colors.grey.shade200,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: enabled ? controller.pause : null,
+          child: const SizedBox(
+            width: 34,
+            height: 34,
+            child: Icon(Icons.pause_rounded, size: 20, color: AppColors.ink),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _scoreboard() {
     return Container(
       width: double.infinity,
@@ -134,17 +159,25 @@ class _GameScreenState extends State<GameScreen> {
             controller.scoreFor(1),
             AppColors.team1,
           ),
-          Column(
+          Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('⏱', style: TextStyle(fontSize: 12)),
-              Text(
-                '${controller.timeLeft}',
-                style: AppText.number(
-                  size: 15,
-                  color: controller.isUrgent ? AppColors.team2 : AppColors.ink,
-                ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('⏱', style: TextStyle(fontSize: 12)),
+                  Text(
+                    '${controller.timeLeft}',
+                    style: AppText.number(
+                      size: 15,
+                      color:
+                          controller.isUrgent ? AppColors.team2 : AppColors.ink,
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(width: 10),
+              _pauseButton(),
             ],
           ),
           _scoreboardChip(
@@ -300,6 +333,13 @@ class _GameScreenState extends State<GameScreen> {
               if (controller.isCountingDown)
                 Positioned.fill(
                   child: CountdownOverlay(value: controller.countdownValue),
+                ),
+              if (controller.isPaused)
+                Positioned.fill(
+                  child: PauseOverlay(
+                    onResume: controller.resume,
+                    onQuit: _quitGame,
+                  ),
                 ),
             ],
           ),
