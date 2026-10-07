@@ -106,6 +106,8 @@ class _GameScreenState extends State<GameScreen> {
       onDigit: (digit) => controller.pressDigit(team, digit),
       onClear: () => controller.clearInput(team),
       onSubmit: () => controller.submit(team),
+      lastResult: controller.lastResultFor(team),
+      feedbackId: controller.feedbackIdFor(team),
     );
   }
 
