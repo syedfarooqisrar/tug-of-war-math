@@ -35,8 +35,9 @@ class AppText {
   static TextStyle heading({double size = 24, Color color = AppColors.ink}) =>
       GoogleFonts.fredoka(fontSize: size, fontWeight: FontWeight.w700, color: color);
 
-  static TextStyle number({double size = 22, Color color = AppColors.ink}) =>
-      GoogleFonts.fredoka(fontSize: size, fontWeight: FontWeight.w600, color: color);
+     /// Digits use Nunito ExtraBold because its 4 is closed and very clear.
+   static TextStyle number({double size = 22, Color color = AppColors.ink}) =>
+       GoogleFonts.nunito(fontSize: size, fontWeight: FontWeight.w800, color: color);
 
   static TextStyle body({
     double size = 15,

@@ -88,7 +88,7 @@ class _GameScreenState extends State<GameScreen> {
             color: Colors.grey.shade600,
           ),
         ),
-        Text('$score', style: AppText.heading(size: 18, color: color)),
+        Text('$score', style: AppText.number(size: 18, color: color)),
       ],
     );
   }
@@ -138,7 +138,7 @@ class _GameScreenState extends State<GameScreen> {
               const Text('⏱', style: TextStyle(fontSize: 12)),
               Text(
                 '${controller.timeLeft}',
-                style: AppText.heading(
+                style: AppText.number(
                   size: 15,
                   color: controller.isUrgent ? AppColors.team2 : AppColors.ink,
                 ),

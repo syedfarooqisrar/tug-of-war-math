@@ -165,7 +165,7 @@ class TeamPanel extends StatelessWidget {
         fit: BoxFit.scaleDown,
         child: Text(
           questionText,
-          style: AppText.heading(size: tight ? 20 : 26),
+          style: AppText.number(size: tight ? 22 : 28),
         ),
       ),
     );
