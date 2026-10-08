@@ -302,11 +302,36 @@ class _GameScreenState extends State<GameScreen> {
       ],
     );
   }
-  /// Small pill with the timer, pause and mute buttons. Used on tall
-  /// screens, where it floats on top of the arena.
-  Widget _hudPill() {
+
+    /// Small timer chip that floats on top of the arena (tall screens).
+  Widget _timerChip() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('⏱', style: TextStyle(fontSize: 10)),
+          const SizedBox(width: 3),
+          Text(
+            '${controller.timeLeft}',
+            style: AppText.number(
+              size: 13,
+              color: controller.isUrgent ? AppColors.team2 : AppColors.ink,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Pause and mute stacked vertically in a small pill (corner of tall screens).
+  Widget _cornerButtons() {
+    return Container(
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(22),
@@ -318,40 +343,27 @@ class _GameScreenState extends State<GameScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('⏱', style: TextStyle(fontSize: 13)),
-          const SizedBox(width: 4),
-          Text(
-            '${controller.timeLeft}',
-            style: AppText.number(
-              size: 17,
-              color: controller.isUrgent ? AppColors.team2 : AppColors.ink,
-            ),
-          ),
-          const SizedBox(width: 10),
           _pauseButton(),
-          const SizedBox(width: 6),
+          const SizedBox(height: 6),
           _muteButton(),
         ],
       ),
     );
   }
 
-  /// The arena with the timer pill floating at the top (tall screens).
+  /// The arena with the small timer chip floating at the top (tall screens).
   Widget _faceToFaceArena() {
     return Stack(
       children: [
         Positioned.fill(child: _ropeCard()),
-        Positioned.fill(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: _hudPill(),
-            ),
-          ),
+        Positioned(
+          top: 6,
+          left: 0,
+          right: 0,
+          child: Center(child: _timerChip()),
         ),
       ],
     );
@@ -415,40 +427,47 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
-
+  
   Widget _faceToFaceBoard() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-      child: Column(
-        children: [
-          Expanded(
-            flex: 10,
-            child: RotatedBox(
-              quarterTurns: 2,
-              child: _limitedWidth(
-                LayoutConstants.portraitPanelMaxWidth,
-                _teamPanel(2),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          child: Column(
+            children: [
+              Expanded(
+                flex: 10,
+                child: RotatedBox(
+                  quarterTurns: 2,
+                  child: _limitedWidth(
+                    LayoutConstants.portraitPanelMaxWidth,
+                    _teamPanel(2),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(height: 10),
+              Expanded(
+                flex: 5,
+                child: _limitedWidth(
+                  LayoutConstants.portraitArenaMaxWidth,
+                  _faceToFaceArena(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                flex: 10,
+                child: _limitedWidth(
+                  LayoutConstants.portraitPanelMaxWidth,
+                  _teamPanel(1),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          Expanded(
-            flex: 5,
-            child: _limitedWidth(
-              LayoutConstants.portraitArenaMaxWidth,
-              _faceToFaceArena(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            flex: 10,
-            child: _limitedWidth(
-              LayoutConstants.portraitPanelMaxWidth,
-              _teamPanel(1),
-            ),
-          ),
-        ],
-      ),
+        ),
+        // Pause and mute: stacked in the bottom-left corner, next to Team 1.
+        Positioned(left: 8, bottom: 12, child: _cornerButtons()),
+      ],
     );
   }
 

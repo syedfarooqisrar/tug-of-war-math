@@ -152,7 +152,7 @@ class _TeamPanelState extends State<TeamPanel>
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.96),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white, width: 2),
+           
             boxShadow: [
               BoxShadow(
                 color: color.withValues(alpha: 0.35),
