@@ -38,7 +38,7 @@ class _Layout {
     horizon = h * 0.38;
     groundY = h * 0.78;
     pullerCount = w >= 520 ? 3 : 2;
-    height = math.min(h * 0.42, w * 0.32).clamp(36.0, 190.0).toDouble();
+    height = math.min(h * 0.52, w * 0.32).clamp(36.0, 190.0).toDouble();
     k = height / 110;
 
     // How far the last puller reaches from the rope center. The rope may

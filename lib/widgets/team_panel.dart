@@ -141,9 +141,12 @@ class _TeamPanelState extends State<TeamPanel>
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // On a short panel (phone on its side) shrink the top parts so
+        // On a short panel (phone held upright) shrink the top parts so
         // the whole numpad stays visible.
         final tight = constraints.maxHeight < 380;
+        // If the panel is also wide, put the question and the answer box
+        // side by side to give the numpad more height.
+        final compact = tight && constraints.maxWidth >= 240;
 
         return Container(
           decoration: BoxDecoration(
@@ -172,9 +175,23 @@ class _TeamPanelState extends State<TeamPanel>
                   padding: EdgeInsets.all(tight ? 8 : 10),
                   child: Column(
                     children: [
-                      _questionCard(tight),
-                      SizedBox(height: tight ? 6 : 8),
-                      _answerBox(tight),
+                      if (compact)
+                        SizedBox(
+                          height: 44,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(flex: 3, child: _questionCard(true)),
+                              const SizedBox(width: 8),
+                              Expanded(flex: 2, child: _answerBox(true)),
+                            ],
+                          ),
+                        )
+                      else ...[
+                        _questionCard(tight),
+                        SizedBox(height: tight ? 6 : 8),
+                        _answerBox(tight),
+                      ],
                       SizedBox(height: tight ? 6 : 10),
                       Expanded(
                         child: Numpad(

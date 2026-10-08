@@ -39,6 +39,9 @@ class LayoutConstants {
 
   // The title is hidden when there is less height than this
   static const double titleMinHeight = 520;
+   // Face-to-face (portrait) layout: calculators are narrower than the arena
+  static const double portraitPanelMaxWidth = 280;
+  static const double portraitArenaMaxWidth = 440;
 
   // Adaptive scaling: the UI is designed at a reference size and then
   // scaled up or down to fit the real screen.

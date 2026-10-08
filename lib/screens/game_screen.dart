@@ -302,6 +302,60 @@ class _GameScreenState extends State<GameScreen> {
       ],
     );
   }
+  /// Small pill with the timer, pause and mute buttons. Used on tall
+  /// screens, where it floats on top of the arena.
+  Widget _hudPill() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('⏱', style: TextStyle(fontSize: 13)),
+          const SizedBox(width: 4),
+          Text(
+            '${controller.timeLeft}',
+            style: AppText.number(
+              size: 17,
+              color: controller.isUrgent ? AppColors.team2 : AppColors.ink,
+            ),
+          ),
+          const SizedBox(width: 10),
+          _pauseButton(),
+          const SizedBox(width: 6),
+          _muteButton(),
+        ],
+      ),
+    );
+  }
+
+  /// The arena with the timer pill floating at the top (tall screens).
+  Widget _faceToFaceArena() {
+    return Stack(
+      children: [
+        Positioned.fill(child: _ropeCard()),
+        Positioned.fill(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: _hudPill(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _title() {
     return Padding(
@@ -352,6 +406,16 @@ class _GameScreenState extends State<GameScreen> {
   /// Tall screens (phone or tablet held upright): two players sit opposite
   /// each other. Team 2 is at the top, turned upside down; Team 1 is at
   /// the bottom.
+    /// Keeps a widget centered and no wider than [maxWidth].
+  Widget _limitedWidth(double maxWidth, Widget child) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: child,
+      ),
+    );
+  }
+
   Widget _faceToFaceBoard() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -359,12 +423,30 @@ class _GameScreenState extends State<GameScreen> {
         children: [
           Expanded(
             flex: 10,
-            child: RotatedBox(quarterTurns: 2, child: _teamPanel(2)),
+            child: RotatedBox(
+              quarterTurns: 2,
+              child: _limitedWidth(
+                LayoutConstants.portraitPanelMaxWidth,
+                _teamPanel(2),
+              ),
+            ),
           ),
           const SizedBox(height: 10),
-          Expanded(flex: 7, child: _arenaColumn()),
+          Expanded(
+            flex: 5,
+            child: _limitedWidth(
+              LayoutConstants.portraitArenaMaxWidth,
+              _faceToFaceArena(),
+            ),
+          ),
           const SizedBox(height: 10),
-          Expanded(flex: 10, child: _teamPanel(1)),
+          Expanded(
+            flex: 10,
+            child: _limitedWidth(
+              LayoutConstants.portraitPanelMaxWidth,
+              _teamPanel(1),
+            ),
+          ),
         ],
       ),
     );
