@@ -30,18 +30,24 @@ class GameConfig {
 class LayoutConstants {
   LayoutConstants._();
 
-  static const double boardMaxWidth = 820;
-  static const double boardMaxHeight = 420;
+  // Game board (design units; the whole UI is scaled to fit the screen)
+  static const double boardMaxWidth = 900;
+  static const double boardMaxHeight = 460;
   static const double panelGap = 12;
   static const double cardRadius = 24;
   static const double startCardWidth = 420;
-  
-  // Responsive layout
-  static const double wideMinWidth = 700;
+
+  // The title is hidden when there is less height than this
   static const double titleMinHeight = 520;
-  static const double compactBoardMaxWidth = 560;
-  static const double compactSidePadding = 12;
-  static const double compactRopeHeight = 150;
+
+  // Adaptive scaling: the UI is designed at a reference size and then
+  // scaled up or down to fit the real screen.
+  static const double landscapeRefWidth = 940;
+  static const double landscapeRefHeight = 580;
+  static const double portraitRefWidth = 420;
+  static const double portraitRefHeight = 820;
+  static const double minUiScale = 0.85;
+  static const double maxUiScale = 4.0;
 }
 
 /// Every text shown to the player. Later we will replace these with

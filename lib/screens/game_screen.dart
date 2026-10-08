@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import '../core/constants/app_constants.dart';
+import '../core/layout/adaptive_layout.dart';
 import '../core/services/sound_service.dart';
 import '../game/game_controller.dart';
 import '../game/tug_of_war_game.dart';
@@ -103,16 +104,21 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _showWinDialog() {
+    // On big screens the dialog is enlarged like the rest of the UI.
+    final scale = AdaptiveLayout.scaleFor(MediaQuery.sizeOf(context));
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => WinDialog(
-        winner: controller.winner,
-        score1: controller.scoreFor(1),
-        score2: controller.scoreFor(2),
-        onBackToMenu: () => Navigator.of(context)
-          ..pop()
-          ..pop(),
+      builder: (_) => Transform.scale(
+        scale: scale < 1 ? 1.0 : scale,
+        child: WinDialog(
+          winner: controller.winner,
+          score1: controller.scoreFor(1),
+          score2: controller.scoreFor(2),
+          onBackToMenu: () => Navigator.of(context)
+            ..pop()
+            ..pop(),
+        ),
       ),
     );
   }
@@ -184,6 +190,7 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
+
   /// Sound on/off button. Muting also turns off vibration.
   Widget _muteButton() {
     return ValueListenableBuilder<bool>(
@@ -209,6 +216,7 @@ class _GameScreenState extends State<GameScreen> {
       },
     );
   }
+
   Widget _scoreboard() {
     return Container(
       width: double.infinity,
@@ -249,10 +257,10 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                 ],
               ),
-                 const SizedBox(width: 8),
-                 _pauseButton(),
-                 const SizedBox(width: 8),
-                 _muteButton(),
+              const SizedBox(width: 8),
+              _pauseButton(),
+              const SizedBox(width: 8),
+              _muteButton(),
             ],
           ),
           _scoreboardChip(
@@ -284,113 +292,91 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  // ---------- The two board layouts ----------
+  /// Scoreboard on top, arena below it.
+  Widget _arenaColumn() {
+    return Column(
+      children: [
+        _scoreboard(),
+        const SizedBox(height: 8),
+        Expanded(child: _ropeCard()),
+      ],
+    );
+  }
 
-  /// Tablet landscape, laptop, web: panel | rope | panel in one row.
-  Widget _wideBoard() {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(
-        maxWidth: LayoutConstants.boardMaxWidth,
-        maxHeight: LayoutConstants.boardMaxHeight,
+  Widget _title() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Text(
+        '🏆 ${AppStrings.appTitle.toUpperCase()}',
+        style: AppText.heading(size: 18, color: AppColors.team1Dark),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(flex: 2, child: _teamPanel(1)),
-          const SizedBox(width: LayoutConstants.panelGap),
-          Expanded(
-            flex: 3,
-            child: Column(
-              children: [
-                _scoreboard(),
-                const SizedBox(height: 8),
-                Expanded(child: _ropeCard()),
-              ],
+    );
+  }
+
+  // ---------- The two layouts ----------
+
+  /// Wide screens (landscape): panel | arena | panel.
+  Widget _sideBySideBoard(Size size) {
+    final showTitle = size.height >= LayoutConstants.titleMinHeight;
+
+    return Column(
+      children: [
+        if (showTitle) _title(),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: LayoutConstants.boardMaxWidth,
+                  maxHeight: LayoutConstants.boardMaxHeight,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 2, child: _teamPanel(1)),
+                    const SizedBox(width: LayoutConstants.panelGap),
+                    Expanded(flex: 3, child: _arenaColumn()),
+                    const SizedBox(width: LayoutConstants.panelGap),
+                    Expanded(flex: 2, child: _teamPanel(2)),
+                  ],
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: LayoutConstants.panelGap),
-          Expanded(flex: 2, child: _teamPanel(2)),
+        ),
+      ],
+    );
+  }
+
+  /// Tall screens (phone or tablet held upright): two players sit opposite
+  /// each other. Team 2 is at the top, turned upside down; Team 1 is at
+  /// the bottom.
+  Widget _faceToFaceBoard() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      child: Column(
+        children: [
+          Expanded(
+            flex: 10,
+            child: RotatedBox(quarterTurns: 2, child: _teamPanel(2)),
+          ),
+          const SizedBox(height: 10),
+          Expanded(flex: 7, child: _arenaColumn()),
+          const SizedBox(height: 10),
+          Expanded(flex: 10, child: _teamPanel(1)),
         ],
       ),
     );
   }
 
-  /// Phone in portrait, narrow window: scoreboard and rope on top,
-  /// the two team panels side by side below.
-  Widget _compactBoard() {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(
-        maxWidth: LayoutConstants.compactBoardMaxWidth,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: LayoutConstants.compactSidePadding,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _scoreboard(),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: LayoutConstants.compactRopeHeight,
-              child: _ropeCard(),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: _teamPanel(1)),
-                  const SizedBox(width: LayoutConstants.panelGap),
-                  Expanded(child: _teamPanel(2)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// The whole game board with its title, responsive to screen size.
   Widget _board() {
     return FieldBackground(
       child: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide =
-                constraints.maxWidth >= LayoutConstants.wideMinWidth &&
-                    constraints.maxWidth > constraints.maxHeight;
-            final showTitle =
-                constraints.maxHeight >= LayoutConstants.titleMinHeight;
-
-            return Column(
-              children: [
-                if (showTitle)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
-                      '🏆 ${AppStrings.appTitle.toUpperCase()}',
-                      style: AppText.heading(
-                        size: 18,
-                        color: AppColors.team1Dark,
-                      ),
-                    ),
-                  ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: isWide
-                        ? Center(child: _wideBoard())
-                        : Align(
-                            alignment: Alignment.topCenter,
-                            child: _compactBoard(),
-                          ),
-                  ),
-                ),
-              ],
-            );
-          },
+        child: ScaledView(
+          builder: (context, size, mode) => mode == BoardMode.faceToFace
+              ? _faceToFaceBoard()
+              : _sideBySideBoard(size),
         ),
       ),
     );
@@ -407,13 +393,18 @@ class _GameScreenState extends State<GameScreen> {
               Positioned.fill(child: _board()),
               if (controller.isCountingDown)
                 Positioned.fill(
-                  child: CountdownOverlay(value: controller.countdownValue),
+                  child: ScaledView(
+                    builder: (context, size, mode) =>
+                        CountdownOverlay(value: controller.countdownValue),
+                  ),
                 ),
               if (controller.isPaused)
                 Positioned.fill(
-                  child: PauseOverlay(
-                    onResume: controller.resume,
-                    onQuit: _quitGame,
+                  child: ScaledView(
+                    builder: (context, size, mode) => PauseOverlay(
+                      onResume: controller.resume,
+                      onQuit: _quitGame,
+                    ),
                   ),
                 ),
             ],
