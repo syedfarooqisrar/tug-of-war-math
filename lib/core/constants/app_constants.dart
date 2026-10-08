@@ -73,6 +73,8 @@ class AppStrings {
   static const String tieSubtitle = 'Evenly matched — run it back!';
   static const String winSubtitle = 'Great tug-of-war battle!';
   static const String backToMenu = 'Back to menu';
+  static const String playAgain = 'Play Again';
+  static String teamWins(int team) => 'Team $team Wins!';
   static const String getReady = 'Get ready!';
   static const String go = 'GO!';
   static const String paused = 'Paused';

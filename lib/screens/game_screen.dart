@@ -9,7 +9,7 @@ import '../theme/app_theme.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/pause_overlay.dart';
 import '../widgets/team_panel.dart';
-import '../widgets/win_dialog.dart';
+import '../widgets/win_overlay.dart';
 
 class GameScreen extends StatefulWidget {
   final int maxTable;
@@ -30,12 +30,12 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   late final GameController controller;
   late final TugOfWarGame game;
-  bool _dialogShown = false;
 
   // What we already played a sound for, so each event sounds only once.
   int _lastCountdown = -99;
   int _lastFeedback1 = 0;
   int _lastFeedback2 = 0;
+  bool _finishHandled = false;
 
   @override
   void initState() {
@@ -59,13 +59,7 @@ class _GameScreenState extends State<GameScreen> {
   /// Runs every time the controller changes (score, timer, winner).
   void _onControllerChanged() {
     if (game.isLoaded) game.updatePull(controller.pull);
-
     _syncSounds();
-
-    if (controller.isFinished && !_dialogShown && mounted) {
-      _dialogShown = true;
-      _showWinDialog();
-    }
   }
 
   /// Plays a sound for anything new that happened in the game.
@@ -81,7 +75,7 @@ class _GameScreenState extends State<GameScreen> {
 
     // 2. Answers: right or wrong sound. If this answer ended the round,
     //    skip it and let the win sound play alone.
-    final justFinished = controller.isFinished && !_dialogShown;
+    final justFinished = controller.isFinished && !_finishHandled;
     for (final team in const [1, 2]) {
       final id = controller.feedbackIdFor(team);
       final last = team == 1 ? _lastFeedback1 : _lastFeedback2;
@@ -100,31 +94,27 @@ class _GameScreenState extends State<GameScreen> {
     }
 
     // 3. End of the round.
-    if (justFinished) sound.play(Sfx.win);
-  }
-
-  void _showWinDialog() {
-    // On big screens the dialog is enlarged like the rest of the UI.
-    final scale = AdaptiveLayout.scaleFor(MediaQuery.sizeOf(context));
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => Transform.scale(
-        scale: scale < 1 ? 1.0 : scale,
-        child: WinDialog(
-          winner: controller.winner,
-          score1: controller.scoreFor(1),
-          score2: controller.scoreFor(2),
-          onBackToMenu: () => Navigator.of(context)
-            ..pop()
-            ..pop(),
-        ),
-      ),
-    );
+    if (justFinished) {
+      _finishHandled = true;
+      sound.play(Sfx.win);
+    }
   }
 
   /// Leaves the game and goes back to the start screen.
   void _quitGame() => Navigator.of(context).pop();
+
+  /// Starts a fresh round with the same settings.
+  void _playAgain() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => GameScreen(
+          maxTable: widget.maxTable,
+          roundSeconds: widget.roundSeconds,
+          winPulls: widget.winPulls,
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -303,7 +293,7 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-    /// Small timer chip that floats on top of the arena (tall screens).
+  /// Small timer chip that floats on top of the arena (tall screens).
   Widget _timerChip() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -415,10 +405,7 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  /// Tall screens (phone or tablet held upright): two players sit opposite
-  /// each other. Team 2 is at the top, turned upside down; Team 1 is at
-  /// the bottom.
-    /// Keeps a widget centered and no wider than [maxWidth].
+  /// Keeps a widget centered and no wider than [maxWidth].
   Widget _limitedWidth(double maxWidth, Widget child) {
     return Center(
       child: ConstrainedBox(
@@ -427,7 +414,10 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
-  
+
+  /// Tall screens (phone or tablet held upright): two players sit opposite
+  /// each other. Team 2 is at the top, turned upside down; Team 1 is at
+  /// the bottom.
   Widget _faceToFaceBoard() {
     return Stack(
       fit: StackFit.expand,
@@ -505,6 +495,19 @@ class _GameScreenState extends State<GameScreen> {
                     builder: (context, size, mode) => PauseOverlay(
                       onResume: controller.resume,
                       onQuit: _quitGame,
+                    ),
+                  ),
+                ),
+              if (controller.isFinished)
+                Positioned.fill(
+                  child: ScaledView(
+                    builder: (context, size, mode) => WinOverlay(
+                      winner: controller.winner,
+                      score1: controller.scoreFor(1),
+                      score2: controller.scoreFor(2),
+                      faceToFace: mode == BoardMode.faceToFace,
+                      onPlayAgain: _playAgain,
+                      onMenu: _quitGame,
                     ),
                   ),
                 ),
