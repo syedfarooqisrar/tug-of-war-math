@@ -36,6 +36,11 @@ class LayoutConstants {
   static const double panelGap = 12;
   static const double cardRadius = 24;
   static const double startCardWidth = 420;
+  // Start screen design size (the card is scaled to fit the screen)
+  static const double startRefWidth = 460;
+  static const double startRefHeight = 780;
+  // Below this (virtual) height the start card scrolls instead of shrinking
+  static const double startScrollBelowHeight = 560;
 
   // The title is hidden when there is less height than this
   static const double titleMinHeight = 520;
@@ -59,12 +64,15 @@ class AppStrings {
   AppStrings._();
 
   static const String appTitle = 'Tug of War: Mathematics';
-  static const String tagline = 'Two teams race to solve tables and pull the rope!';
+  static const String tagline = 'Two teams race to solve maths and pull the rope!';
 
   static const String timesTables = 'Times tables';
   static const String roundLength = 'Round length';
   static const String pullsToWin = 'Pulls to win instantly';
   static const String startGame = 'Start Game';
+  static const String operation = 'Operation';
+  static const String gameMode = 'Game mode';
+  static const String difficulty = 'Difficulty';
 
   static const String team1 = 'Team 1';
   static const String team2 = 'Team 2';
