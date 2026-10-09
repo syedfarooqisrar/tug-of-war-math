@@ -31,8 +31,9 @@ class AdaptiveLayout {
         );
 
   /// How much the UI is enlarged (above 1) or shrunk (below 1).
-  static double scaleFor(Size size) {
-    final ref = referenceSize(modeFor(size));
+  /// [reference] overrides the design size (the start screen uses its own).
+  static double scaleFor(Size size, {Size? reference}) {
+    final ref = reference ?? referenceSize(modeFor(size));
     final fit = math.min(size.width / ref.width, size.height / ref.height);
     return fit
         .clamp(LayoutConstants.minUiScale, LayoutConstants.maxUiScale)
@@ -46,7 +47,10 @@ class ScaledView extends StatelessWidget {
   final Widget Function(BuildContext context, Size size, BoardMode mode)
       builder;
 
-  const ScaledView({super.key, required this.builder});
+  /// Optional design size. Leave it out for the game board.
+  final Size? reference;
+
+  const ScaledView({super.key, this.reference, required this.builder});
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +62,7 @@ class ScaledView extends StatelessWidget {
         }
 
         final mode = AdaptiveLayout.modeFor(available);
-        final scale = AdaptiveLayout.scaleFor(available);
+        final scale = AdaptiveLayout.scaleFor(available, reference: reference);
         final virtual = Size(available.width / scale, available.height / scale);
 
         return FittedBox(

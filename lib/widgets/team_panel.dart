@@ -21,6 +21,7 @@ class TeamPanel extends StatefulWidget {
   /// on every answer. When the counter changes, the feedback plays.
   final AnswerResult lastResult;
   final int feedbackId;
+  final bool showQuestion;
 
   const TeamPanel({
     super.key,
@@ -36,6 +37,7 @@ class TeamPanel extends StatefulWidget {
     required this.onSubmit,
     this.lastResult = AnswerResult.ignored,
     this.feedbackId = 0,
+    this.showQuestion = true,
   });
 
   @override
@@ -146,13 +148,13 @@ class _TeamPanelState extends State<TeamPanel>
         final tight = constraints.maxHeight < 380;
         // If the panel is also wide, put the question and the answer box
         // side by side to give the numpad more height.
-        final compact = tight && constraints.maxWidth >= 240;
+        final compact =
+            widget.showQuestion && tight && constraints.maxWidth >= 240;
 
         return Container(
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.96),
             borderRadius: BorderRadius.circular(24),
-           
             boxShadow: [
               BoxShadow(
                 color: color.withValues(alpha: 0.35),
@@ -175,7 +177,9 @@ class _TeamPanelState extends State<TeamPanel>
                   padding: EdgeInsets.all(tight ? 8 : 10),
                   child: Column(
                     children: [
-                      if (compact)
+                      if (!widget.showQuestion)
+                        _answerBox(tight)
+                      else if (compact)
                         SizedBox(
                           height: 44,
                           child: Row(
