@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../core/constants/app_constants.dart';
+import '../models/game_settings.dart';
 import '../models/question.dart';
 
 /// What happened when a team pressed the ✓ button.
@@ -13,23 +14,23 @@ enum GamePhase { countdown, playing, paused, finished }
 /// scores, the timer and the winner. The screen only reads from it
 /// and calls its methods.
 class GameController extends ChangeNotifier {
-  GameController({
-    required this.maxTable,
-    required this.roundSeconds,
-    required this.winPulls,
-  }) {
-    _timeLeft = roundSeconds;
+  GameController({required this.settings}) {
+    _timeLeft = settings.roundSeconds;
     _countdown = GameConfig.countdownSeconds;
+    _shared = _newQuestion();
     _question1 = _newQuestion();
-    _question2 = _newQuestion();
+    _question2 = _newQuestion(avoid: _question1);
   }
 
-  final int maxTable;
-  final int roundSeconds;
-  final int winPulls;
+  final GameSettings settings;
 
+  // Classic mode: one question per team.
   late Question _question1;
   late Question _question2;
+
+  // Speed Race mode: one question shared by both teams.
+  late Question _shared;
+
   String _input1 = '';
   String _input2 = '';
   int _score1 = 0;
@@ -49,7 +50,17 @@ class GameController extends ChangeNotifier {
 
   // ---------- Read-only state for the screen ----------
 
-  Question questionFor(int team) => team == 1 ? _question1 : _question2;
+  bool get isSpeedRace => settings.mode == GameMode.speedRace;
+  int get winPulls => settings.winPulls;
+
+  /// The question a team has to answer. In Speed Race both teams
+  /// get the same one.
+  Question questionFor(int team) =>
+      isSpeedRace ? _shared : (team == 1 ? _question1 : _question2);
+
+  /// The shared question shown in the middle (Speed Race).
+  Question get sharedQuestion => _shared;
+
   String inputFor(int team) => team == 1 ? _input1 : _input2;
   int scoreFor(int team) => team == 1 ? _score1 : _score2;
 
@@ -129,11 +140,22 @@ class GameController extends ChangeNotifier {
     if (isCorrect) {
       if (team == 1) {
         _score1++;
-        _question1 = _newQuestion();
       } else {
         _score2++;
-        _question2 = _newQuestion();
       }
+
+      if (isSpeedRace) {
+        // The first correct answer wins the point. New shared question,
+        // and both teams start typing again from scratch.
+        _shared = _newQuestion(avoid: _shared);
+        _input1 = '';
+        _input2 = '';
+      } else if (team == 1) {
+        _question1 = _newQuestion(avoid: _question1);
+      } else {
+        _question2 = _newQuestion(avoid: _question2);
+      }
+
       _checkInstantWin();
     }
 
@@ -192,10 +214,16 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  Question _newQuestion() => Question.random(
-        maxTable: maxTable,
-        maxMultiplier: GameConfig.maxMultiplier,
-      );
+  /// A new question that is not the same as [avoid].
+  Question _newQuestion({Question? avoid}) {
+    var question = Question.generate(settings.operation, settings.difficulty);
+    for (var i = 0;
+        i < 5 && avoid != null && question.text == avoid.text;
+        i++) {
+      question = Question.generate(settings.operation, settings.difficulty);
+    }
+    return question;
+  }
 
   @override
   void dispose() {

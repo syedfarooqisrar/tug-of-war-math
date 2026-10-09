@@ -5,23 +5,18 @@ import '../core/layout/adaptive_layout.dart';
 import '../core/services/sound_service.dart';
 import '../game/game_controller.dart';
 import '../game/tug_of_war_game.dart';
+import '../models/game_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/pause_overlay.dart';
+import '../widgets/question_banner.dart';
 import '../widgets/team_panel.dart';
 import '../widgets/win_overlay.dart';
 
 class GameScreen extends StatefulWidget {
-  final int maxTable;
-  final int roundSeconds;
-  final int winPulls;
+  final GameSettings settings;
 
-  const GameScreen({
-    super.key,
-    required this.maxTable,
-    required this.roundSeconds,
-    required this.winPulls,
-  });
+  const GameScreen({super.key, required this.settings});
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -40,11 +35,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
-    controller = GameController(
-      maxTable: widget.maxTable,
-      roundSeconds: widget.roundSeconds,
-      winPulls: widget.winPulls,
-    );
+    controller = GameController(settings: widget.settings);
     game = TugOfWarGame();
     controller.addListener(_onControllerChanged);
     controller.start();
@@ -107,11 +98,7 @@ class _GameScreenState extends State<GameScreen> {
   void _playAgain() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => GameScreen(
-          maxTable: widget.maxTable,
-          roundSeconds: widget.roundSeconds,
-          winPulls: widget.winPulls,
-        ),
+        builder: (_) => GameScreen(settings: widget.settings),
       ),
     );
   }
@@ -157,6 +144,8 @@ class _GameScreenState extends State<GameScreen> {
       onSubmit: () => controller.submit(team),
       lastResult: controller.lastResultFor(team),
       feedbackId: controller.feedbackIdFor(team),
+      // Speed Race shows one shared question in the middle instead.
+      showQuestion: !controller.isSpeedRace,
     );
   }
 
@@ -282,12 +271,17 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  /// Scoreboard on top, arena below it.
+  /// Scoreboard on top, then (Speed Race only) the shared question,
+  /// then the arena.
   Widget _arenaColumn() {
     return Column(
       children: [
         _scoreboard(),
         const SizedBox(height: 8),
+        if (controller.isSpeedRace) ...[
+          QuestionBanner(text: controller.sharedQuestion.text, fontSize: 34),
+          const SizedBox(height: 8),
+        ],
         Expanded(child: _ropeCard()),
       ],
     );
@@ -415,10 +409,28 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  /// The shared question as a slim strip (tall screens, Speed Race).
+  Widget _portraitBanner() {
+    return _limitedWidth(
+      LayoutConstants.portraitArenaMaxWidth,
+      SizedBox(
+        height: 54,
+        child: QuestionBanner(
+          text: controller.sharedQuestion.text,
+          fontSize: 28,
+        ),
+      ),
+    );
+  }
+
   /// Tall screens (phone or tablet held upright): two players sit opposite
   /// each other. Team 2 is at the top, turned upside down; Team 1 is at
-  /// the bottom.
+  /// the bottom. In Speed Race each player also gets the shared question,
+  /// facing them.
   Widget _faceToFaceBoard() {
+    final race = controller.isSpeedRace;
+    final gap = race ? 8.0 : 10.0;
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -436,7 +448,11 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: gap),
+              if (race) ...[
+                RotatedBox(quarterTurns: 2, child: _portraitBanner()),
+                SizedBox(height: gap),
+              ],
               Expanded(
                 flex: 5,
                 child: _limitedWidth(
@@ -444,7 +460,11 @@ class _GameScreenState extends State<GameScreen> {
                   _faceToFaceArena(),
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: gap),
+              if (race) ...[
+                _portraitBanner(),
+                SizedBox(height: gap),
+              ],
               Expanded(
                 flex: 10,
                 child: _limitedWidth(

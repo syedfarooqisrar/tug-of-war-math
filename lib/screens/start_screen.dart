@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../theme/app_theme.dart';
 import 'game_screen.dart';
+import '../models/game_settings.dart';
 
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
@@ -87,9 +88,15 @@ class _StartScreenState extends State<StartScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => GameScreen(
-          maxTable: maxTable,
-          roundSeconds: roundSeconds,
-          winPulls: winPulls,
+          settings: GameSettings(
+            difficulty: maxTable <= 5
+                ? Difficulty.easy
+                : (maxTable <= 10 ? Difficulty.medium : Difficulty.hard),
+            roundSeconds: roundSeconds,
+            winPulls: winPulls,
+            operation: MathOperation.mixed,
+            mode: GameMode.speedRace,
+          ),
         ),
       ),
     );
