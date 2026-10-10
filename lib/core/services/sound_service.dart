@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../constants/app_constants.dart';
 
 /// Every sound effect in the game.
-enum Sfx { correct, wrong, tick, go, win }
+enum Sfx { correct, wrong, tick, go, win, bonus }
 
 /// Plays sound effects and matching vibration. One shared instance is
 /// used by the whole app, so the mute choice is kept between games.
@@ -23,6 +23,7 @@ class SoundService {
     Sfx.tick: SoundAssets.tick,
     Sfx.go: SoundAssets.go,
     Sfx.win: SoundAssets.win,
+    Sfx.bonus: SoundAssets.go,
   };
 
   final Map<Sfx, AudioPlayer> _players = {};
@@ -81,6 +82,8 @@ class SoundService {
       case Sfx.go:
         HapticFeedback.mediumImpact();
       case Sfx.win:
+        HapticFeedback.heavyImpact();
+      case Sfx.bonus:
         HapticFeedback.heavyImpact();
     }
   }

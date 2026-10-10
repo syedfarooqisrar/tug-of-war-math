@@ -11,8 +11,8 @@ enum AnswerResult { ignored, correct, wrong }
 enum GamePhase { countdown, playing, paused, finished }
 
 /// Holds every rule of one round: countdown, questions, typed answers,
-/// scores, the timer and the winner. The screen only reads from it
-/// and calls its methods.
+/// scores, streaks, the timer and the winner. The screen only reads from
+/// it and calls its methods.
 class GameController extends ChangeNotifier {
   GameController({required this.settings}) {
     _timeLeft = settings.roundSeconds;
@@ -48,6 +48,15 @@ class GameController extends ChangeNotifier {
   int _feedbackId1 = 0;
   int _feedbackId2 = 0;
 
+  // Streaks: correct answers in a row. At [GameConfig.streakForBonus] the
+  // team is "on fire" and its next correct answer pulls double.
+  int _streak1 = 0;
+  int _streak2 = 0;
+
+  // Points earned by the team's last answer (0 for a wrong answer).
+  int _lastPoints1 = 0;
+  int _lastPoints2 = 0;
+
   // ---------- Read-only state for the screen ----------
 
   bool get isSpeedRace => settings.mode == GameMode.speedRace;
@@ -70,6 +79,24 @@ class GameController extends ChangeNotifier {
 
   /// Goes up by one on every answer, right or wrong.
   int feedbackIdFor(int team) => team == 1 ? _feedbackId1 : _feedbackId2;
+
+  /// Correct answers in a row.
+  int streakFor(int team) => team == 1 ? _streak1 : _streak2;
+
+  /// True when the team's next correct answer pulls double.
+  bool isOnFire(int team) => streakFor(team) >= GameConfig.streakForBonus;
+
+  /// Points the team's last answer earned (0 for a wrong answer).
+  int lastPointsFor(int team) => team == 1 ? _lastPoints1 : _lastPoints2;
+
+  /// 1 or 2 when that team is one pull away from winning, otherwise 0.
+  int get matchPointTeam {
+    if (!isPlaying && !isPaused) return 0;
+    final diff = _score1 - _score2;
+    if (diff >= winPulls - 1) return 1;
+    if (-diff >= winPulls - 1) return 2;
+    return 0;
+  }
 
   GamePhase get phase => _phase;
   bool get isCountingDown => _phase == GamePhase.countdown;
@@ -138,15 +165,17 @@ class GameController extends ChangeNotifier {
     _setFeedback(team, result);
 
     if (isCorrect) {
-      if (team == 1) {
-        _score1++;
-      } else {
-        _score2++;
-      }
+      // A team that is "on fire" cashes in the bonus with this answer.
+      final onFire = isOnFire(team);
+      final points = onFire ? GameConfig.bonusPoints : 1;
+      _addScore(team, points);
+      _setStreak(team, onFire ? 0 : streakFor(team) + 1);
+      _setLastPoints(team, points);
 
       if (isSpeedRace) {
-        // The first correct answer wins the point. New shared question,
-        // and both teams start typing again from scratch.
+        // Winning the question breaks the other team's run. New shared
+        // question, and both teams start typing again from scratch.
+        _setStreak(_otherTeam(team), 0);
         _shared = _newQuestion(avoid: _shared);
         _input1 = '';
         _input2 = '';
@@ -157,6 +186,9 @@ class GameController extends ChangeNotifier {
       }
 
       _checkInstantWin();
+    } else {
+      _setStreak(team, 0);
+      _setLastPoints(team, 0);
     }
 
     notifyListeners();
@@ -194,6 +226,32 @@ class GameController extends ChangeNotifier {
     _winner = winner;
     _phase = GamePhase.finished;
     _timer?.cancel();
+  }
+
+  int _otherTeam(int team) => team == 1 ? 2 : 1;
+
+  void _addScore(int team, int points) {
+    if (team == 1) {
+      _score1 += points;
+    } else {
+      _score2 += points;
+    }
+  }
+
+  void _setStreak(int team, int value) {
+    if (team == 1) {
+      _streak1 = value;
+    } else {
+      _streak2 = value;
+    }
+  }
+
+  void _setLastPoints(int team, int value) {
+    if (team == 1) {
+      _lastPoints1 = value;
+    } else {
+      _lastPoints2 = value;
+    }
   }
 
   void _setInput(int team, String value) {

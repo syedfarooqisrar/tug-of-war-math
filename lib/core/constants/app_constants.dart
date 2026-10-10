@@ -24,6 +24,14 @@ class GameConfig {
   
   // Countdown shown before every round (3, 2, 1, GO!)
   static const int countdownSeconds = 3;
+  // Streak bonus: this many correct answers in a row makes a team
+  // "on fire". Its next correct answer then earns [bonusPoints].
+  static const int streakForBonus = 3;
+  static const int bonusPoints = 2;
+
+  // Pause between the end of a round and the result card (the arena
+  // celebrates in the meantime).
+  static const Duration resultDelay = Duration(milliseconds: 2200);
 }
 
 /// Sizes used by the game board layout.
@@ -87,6 +95,7 @@ class AppStrings {
   static const String backToMenu = 'Back to menu';
   static const String playAgain = 'Play Again';
   static String teamWins(int team) => 'Team $team Wins!';
+  static String matchPoint(int team) => 'TEAM $team · MATCH POINT';
   static const String getReady = 'Get ready!';
   static const String go = 'GO!';
   static const String paused = 'Paused';

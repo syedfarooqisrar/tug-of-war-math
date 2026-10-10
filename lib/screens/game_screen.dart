@@ -80,6 +80,8 @@ class _GameScreenState extends State<GameScreen> {
           final correct =
               controller.lastResultFor(team) == AnswerResult.correct;
           sound.play(correct ? Sfx.correct : Sfx.wrong);
+          final bonus = controller.lastPointsFor(team) > 1;
+          sound.play(correct ? (bonus ? Sfx.bonus : Sfx.correct) : Sfx.wrong);
         }
       }
     }
@@ -146,6 +148,8 @@ class _GameScreenState extends State<GameScreen> {
       feedbackId: controller.feedbackIdFor(team),
       // Speed Race shows one shared question in the middle instead.
       showQuestion: !controller.isSpeedRace,
+      streak: controller.streakFor(team),
+      lastPoints: controller.lastPointsFor(team),
     );
   }
 

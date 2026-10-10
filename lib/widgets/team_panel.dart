@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../core/constants/app_constants.dart';
 import '../game/game_controller.dart' show AnswerResult;
 import '../theme/app_theme.dart';
 import 'numpad.dart';
@@ -21,7 +22,16 @@ class TeamPanel extends StatefulWidget {
   /// on every answer. When the counter changes, the feedback plays.
   final AnswerResult lastResult;
   final int feedbackId;
+
+  /// Hide the question card. Speed Race shows one shared question in the
+  /// middle instead.
   final bool showQuestion;
+
+  /// Correct answers in a row (fills the dots, then shows the flame badge).
+  final int streak;
+
+  /// Points the last answer earned (2 means a bonus pull).
+  final int lastPoints;
 
   const TeamPanel({
     super.key,
@@ -38,20 +48,27 @@ class TeamPanel extends StatefulWidget {
     this.lastResult = AnswerResult.ignored,
     this.feedbackId = 0,
     this.showQuestion = true,
+    this.streak = 0,
+    this.lastPoints = 1,
   });
 
   @override
   State<TeamPanel> createState() => _TeamPanelState();
 }
 
-class _TeamPanelState extends State<TeamPanel>
-    with SingleTickerProviderStateMixin {
+class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
   static const Color _flashGreen = Color(0xFF2ECC71);
   static const Color _flashRed = Color(0xFFD32F2F);
+  static const Color _flashFire = Color(0xFFFFA000);
   static const Color _plusOneGreen = Color(0xFF1B8F4A);
+  static const Color _fireOrange = Color(0xFFFF6D00);
 
   late final AnimationController _anim;
+  late final AnimationController _flame;
   AnswerResult? _playing;
+  int _playingPoints = 1;
+
+  bool get _onFire => widget.streak >= GameConfig.streakForBonus;
 
   @override
   void initState() {
@@ -60,21 +77,36 @@ class _TeamPanelState extends State<TeamPanel>
       vsync: this,
       duration: const Duration(milliseconds: 450),
     );
+    _flame = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    if (_onFire) _flame.repeat(reverse: true);
   }
 
   @override
   void didUpdateWidget(covariant TeamPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (widget.feedbackId != oldWidget.feedbackId &&
         widget.lastResult != AnswerResult.ignored) {
       _playing = widget.lastResult;
+      _playingPoints = widget.lastPoints;
       _anim.forward(from: 0);
+    }
+
+    // The flame badge pulses only while the team is on fire.
+    if (_onFire && !_flame.isAnimating) {
+      _flame.repeat(reverse: true);
+    } else if (!_onFire && _flame.isAnimating) {
+      _flame.stop();
     }
   }
 
   @override
   void dispose() {
     _anim.dispose();
+    _flame.dispose();
     super.dispose();
   }
 
@@ -92,6 +124,10 @@ class _TeamPanelState extends State<TeamPanel>
             ? math.sin(t * math.pi * 6) * 9 * (1 - t)
             : 0.0;
 
+        final flashColor = playing == AnswerResult.correct
+            ? (_playingPoints > 1 ? _flashFire : _flashGreen)
+            : _flashRed;
+
         return Transform.translate(
           offset: Offset(shake, 0),
           child: Stack(
@@ -104,10 +140,7 @@ class _TeamPanelState extends State<TeamPanel>
                   child: IgnorePointer(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: (playing == AnswerResult.correct
-                                ? _flashGreen
-                                : _flashRed)
-                            .withValues(alpha: 0.38 * (1 - t)),
+                        color: flashColor.withValues(alpha: 0.38 * (1 - t)),
                         borderRadius: BorderRadius.circular(24),
                       ),
                     ),
@@ -121,12 +154,7 @@ class _TeamPanelState extends State<TeamPanel>
                   child: IgnorePointer(
                     child: Opacity(
                       opacity: 1 - t,
-                      child: Center(
-                        child: Text(
-                          '+1',
-                          style: AppText.heading(size: 34, color: _plusOneGreen),
-                        ),
-                      ),
+                      child: Center(child: _pointsPopup()),
                     ),
                   ),
                 ),
@@ -135,6 +163,27 @@ class _TeamPanelState extends State<TeamPanel>
         );
       },
     );
+  }
+
+  /// "+1" for a normal answer, a flame and "+2" for a bonus answer.
+  Widget _pointsPopup() {
+    if (_playingPoints > 1) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.local_fire_department_rounded,
+            size: 34,
+            color: _fireOrange,
+          ),
+          Text(
+            '+$_playingPoints',
+            style: AppText.heading(size: 38, color: _fireOrange),
+          ),
+        ],
+      );
+    }
+    return Text('+1', style: AppText.heading(size: 34, color: _plusOneGreen));
   }
 
   Widget _panel() {
@@ -240,6 +289,8 @@ class _TeamPanelState extends State<TeamPanel>
             ),
             const SizedBox(width: 10),
             _scoreBadge(),
+            const SizedBox(width: 10),
+            _streakMeter(),
           ],
         ),
       ),
@@ -273,6 +324,74 @@ class _TeamPanelState extends State<TeamPanel>
           key: ValueKey(widget.score),
           textAlign: TextAlign.center,
           style: AppText.number(size: 17, color: widget.color),
+        ),
+      ),
+    );
+  }
+
+  /// Three dots that fill as the streak grows. At the bonus streak they
+  /// turn into a pulsing flame badge.
+  Widget _streakMeter() {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      transitionBuilder: (child, animation) =>
+          ScaleTransition(scale: animation, child: child),
+      child: _onFire ? _fireBadge() : _streakDots(),
+    );
+  }
+
+  Widget _streakDots() {
+    return Row(
+      key: const ValueKey('dots'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < GameConfig.streakForBonus; i++)
+          Container(
+            width: 8,
+            height: 8,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: i < widget.streak
+                  ? Colors.white
+                  : Colors.white.withValues(alpha: 0.3),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _fireBadge() {
+    return ScaleTransition(
+      key: const ValueKey('fire'),
+      scale: Tween<double>(begin: 0.92, end: 1.08).animate(
+        CurvedAnimation(parent: _flame, curve: Curves.easeInOut),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: _fireOrange.withValues(alpha: 0.6),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.local_fire_department_rounded,
+              size: 16,
+              color: _fireOrange,
+            ),
+            Text(
+              '×${GameConfig.bonusPoints}',
+              style: AppText.number(size: 14, color: _fireOrange),
+            ),
+          ],
         ),
       ),
     );
