@@ -39,6 +39,10 @@ class LayoutConstants {
   // Start screen design size (the card is scaled to fit the screen)
   static const double startRefWidth = 460;
   static const double startRefHeight = 780;
+  // Start screen on wide (landscape) displays: two columns
+     static const double startWideCardWidth = 900;
+     static const double startWideRefWidth = 980;
+     static const double startWideRefHeight = 580;
   // Below this (virtual) height the start card scrolls instead of shrinking
   static const double startScrollBelowHeight = 560;
 
@@ -55,7 +59,7 @@ class LayoutConstants {
   static const double portraitRefWidth = 420;
   static const double portraitRefHeight = 820;
   static const double minUiScale = 0.85;
-  static const double maxUiScale = 4.0;
+  static const double maxUiScale = 6.0;
 }
 
 /// Every text shown to the player. Later we will replace these with
