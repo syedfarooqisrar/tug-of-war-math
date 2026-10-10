@@ -12,6 +12,7 @@ import '../widgets/pause_overlay.dart';
 import '../widgets/question_banner.dart';
 import '../widgets/team_panel.dart';
 import '../widgets/win_overlay.dart';
+import '../widgets/match_point_banner.dart';
 
 class GameScreen extends StatefulWidget {
   final GameSettings settings;
@@ -31,6 +32,8 @@ class _GameScreenState extends State<GameScreen> {
   int _lastFeedback1 = 0;
   int _lastFeedback2 = 0;
   bool _finishHandled = false;
+  bool _resultScheduled = false;
+  bool _showResult = false;
 
   @override
   void initState() {
@@ -49,8 +52,21 @@ class _GameScreenState extends State<GameScreen> {
 
   /// Runs every time the controller changes (score, timer, winner).
   void _onControllerChanged() {
-    if (game.isLoaded) game.updatePull(controller.pull);
+    final finished = controller.isFinished;
+
+    if (game.isLoaded) {
+      game.updatePull(controller.pull);
+      if (finished) game.setResult(controller.winner);
+    }
     _syncSounds();
+
+    // Let the arena celebrate for a moment before the result card appears.
+    if (finished && !_resultScheduled) {
+      _resultScheduled = true;
+      Future.delayed(GameConfig.resultDelay, () {
+        if (mounted) setState(() => _showResult = true);
+      });
+    }
   }
 
   /// Plays a sound for anything new that happened in the game.
@@ -271,7 +287,23 @@ class _GameScreenState extends State<GameScreen> {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: GameWidget(game: game),
+      child: Stack(
+        children: [
+          Positioned.fill(child: GameWidget(game: game)),
+          if (controller.matchPointTeam != 0)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 6,
+              child: Center(
+                child: MatchPointBanner(
+                  key: ValueKey(controller.matchPointTeam),
+                  team: controller.matchPointTeam,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -522,7 +554,7 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                 ),
-              if (controller.isFinished)
+              if (controller.isFinished && _showResult)
                 Positioned.fill(
                   child: ScaledView(
                     builder: (context, size, mode) => WinOverlay(

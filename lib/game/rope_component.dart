@@ -17,13 +17,27 @@ Paint _stroke(Color color, double width) => Paint()
   ..strokeCap = StrokeCap.round
   ..strokeJoin = StrokeJoin.round;
 
+/// Fast start, slow finish: 0 -> 1.
+double _ease(double t) {
+  final x = t.clamp(0.0, 1.0).toDouble();
+  return 1 - math.pow(1 - x, 3).toDouble();
+}
+
 class _Palette {
   static const team1 = Color(0xFF2461E8);
   static const team1Dark = Color(0xFF173E9C);
   static const team2 = Color(0xFFE8432B);
   static const team2Dark = Color(0xFFA72C19);
-  static const skins = [Color(0xFFF2C29A), Color(0xFFD9A074), Color(0xFFB87A52)];
-  static const hairs = [Color(0xFF2B1B12), Color(0xFF5A3A22), Color(0xFF151515)];
+  static const skins = [
+    Color(0xFFF2C29A),
+    Color(0xFFD9A074),
+    Color(0xFFB87A52),
+  ];
+  static const hairs = [
+    Color(0xFF2B1B12),
+    Color(0xFF5A3A22),
+    Color(0xFF151515),
+  ];
   static const rope = Color(0xFFC69A5A);
   static const ropeDark = Color(0xFF7A5B32);
   static const ropeLight = Color(0xFFE8CF9D);
@@ -99,28 +113,58 @@ class _Dust {
 // ---------------------------------------------------------------------------
 
 /// Draws the whole tug-of-war arena. [setPull] ranges from -1.0 (Team 2
-/// winning) to 1.0 (Team 1 winning).
+/// winning) to 1.0 (Team 1 winning). [setResult] switches to the
+/// celebration when the round ends.
 class RopeComponent extends PositionComponent {
   double _targetPull = 0;
   double _shownPull = 0;
-  double _time = 0;
+  double _time = 0; // arena time (slows down at match point)
+  double _clock = 0; // real time (never slowed)
+  double _resultTime = 0; // seconds since the round ended
+  int _winner = -1; // -1 = still playing, 0 = tie, 1 or 2 = winning team
   final math.Random _rng = math.Random(11);
   final List<_Dust> _dust = [];
 
-  void setPull(double value) => _targetPull = value.clamp(-1.0, 1.0).toDouble();
+  bool get _finished => _winner >= 0;
+
+  /// 0 when the rope is near the middle, up to 1 right next to a goal line.
+  double get _danger =>
+      ((_shownPull.abs() - 0.6) / 0.4).clamp(0.0, 1.0).toDouble();
+
+  /// How tense the moment is. Only while the round is being played.
+  double get _tension => _finished ? 0.0 : _danger;
+
+  void setPull(double value) =>
+      _targetPull = value.clamp(-1.0, 1.0).toDouble();
+
+  /// The round is over: 0 = tie, 1 = team 1 won, 2 = team 2 won.
+  void setResult(int winner) {
+    if (_winner == winner) return;
+    _winner = winner;
+    _resultTime = 0;
+
+    // The losing team kicks up dust as it falls.
+    if (winner > 0 && size.x > 0 && size.y > 0) {
+      _burstDust(_Layout(size, _shownPull), winner == 1 ? 2 : 1);
+    }
+  }
 
   @override
   void update(double dt) {
     super.update(dt);
     if (size.x <= 0 || size.y <= 0) return;
-    _time += dt;
+
+    _clock += dt;
+    // Visual slow-motion when the rope is almost at a goal line.
+    _time += dt * (1.0 - 0.45 * _tension);
+    if (_finished) _resultTime += dt;
 
     final before = _shownPull;
     _shownPull += (_targetPull - _shownPull) * math.min(1.0, dt * 5);
     final speed = dt > 0 ? (_shownPull - before) / dt : 0.0;
 
     final lay = _Layout(size, _shownPull);
-    if (speed.abs() > 0.08) _spawnDust(lay, speed);
+    if (!_finished && speed.abs() > 0.08) _spawnDust(lay, speed);
     for (final d in _dust) {
       d.update(dt);
     }
@@ -154,34 +198,71 @@ class RopeComponent extends PositionComponent {
   // ---------- Puller data ----------
 
   List<_Puller> _pullersFor(int team, _Layout lay) {
-      final count = lay.pullerCount;
-      final facing = team == 1 ? 1 : -1;
-      return List.generate(count, (i) {
-        final offset = (34 + 40 * i) * lay.k;
+    final count = lay.pullerCount;
+    final facing = team == 1 ? 1 : -1;
+    return List.generate(count, (i) {
+      final offset = (34 + 40 * i) * lay.k;
       final x = team == 1 ? lay.knotX - offset : lay.knotX + offset;
       return _Puller(x: x, facing: facing, team: team, index: i);
     });
   }
 
   Color _jersey(_Puller p) => p.team == 1 ? _Palette.team1 : _Palette.team2;
-  Color _pants(_Puller p) => p.team == 1 ? _Palette.team1Dark : _Palette.team2Dark;
-  Color _skin(_Puller p) => _Palette.skins[(p.index + p.team) % _Palette.skins.length];
-  Color _hair(_Puller p) => _Palette.hairs[(p.index * 2 + p.team) % _Palette.hairs.length];
+  Color _pants(_Puller p) =>
+      p.team == 1 ? _Palette.team1Dark : _Palette.team2Dark;
+  Color _skin(_Puller p) =>
+      _Palette.skins[(p.index + p.team) % _Palette.skins.length];
+  Color _hair(_Puller p) =>
+      _Palette.hairs[(p.index * 2 + p.team) % _Palette.hairs.length];
   double _phase(_Puller p) => p.index * 1.3 + p.team * 0.7;
   double _sway(_Puller p) => math.sin(_time * 5 + _phase(p));
-  double _bob(_Puller p) => math.sin(_time * 10 + _phase(p)) * 0.8;
+
+  /// Up and down breathing, plus a nervous shake when the rope is tense.
+  double _bob(_Puller p) {
+    final breathing = math.sin(_time * 10 + _phase(p)) * 0.8;
+    final strain = _tension * math.sin(_clock * 38 + _phase(p) * 3) * 1.2;
+    return breathing + strain;
+  }
+
+  bool _isWinner(_Puller p) => _finished && _winner == p.team;
+  bool _isLoser(_Puller p) => _finished && _winner > 0 && _winner != p.team;
+
+  /// Winners jump (negative = up, in character units).
+  double _hopOf(_Puller p) =>
+      _isWinner(p) ? -math.sin(_time * 9 + _phase(p)).abs() * 14 : 0.0;
+
+  /// Losers sink toward the ground as they fall.
+  double _dropOf(_Puller p) =>
+      _isLoser(p) ? 38 * _ease(_resultTime / 0.7) : 0.0;
 
   /// How far the body leans back. The leading team leans back harder.
   double _lean(_Puller p) {
+    if (_finished) {
+      if (_isLoser(p)) return 0.3 + 1.1 * _ease(_resultTime / 0.7);
+      return 0.04; // winners (and a tie) stand almost upright
+    }
     final advantage = p.team == 1 ? _shownPull : -_shownPull;
     return 0.30 + 0.10 * advantage + _sway(p) * 0.025;
   }
 
   double _ropeY(double x, _Layout lay) {
     final t = (x / lay.w).clamp(0.0, 1.0);
-    final sag = lay.height * 0.05 * math.sin(math.pi * t);
-    final vibration = math.sin(x * 0.06 / lay.k + _time * 9) * 0.5 * lay.k;
-    return lay.ropeY + sag + vibration;
+    final settle = _finished ? _ease(_resultTime / 0.9) : 0.0;
+
+    // Taut when a team is about to win, flat on the ground after the end.
+    final slack = _finished ? 1.0 - 0.6 * settle : 1.0 - 0.8 * _tension;
+    final sag = lay.height * 0.05 * slack * math.sin(math.pi * t);
+
+    final vibration = _finished
+        ? 0.0
+        : math.sin(x * 0.06 / lay.k + _clock * (9 + 12 * _tension)) *
+            (0.5 + 1.8 * _tension) *
+            lay.k;
+
+    // After the round the rope falls to the grass.
+    final fall = settle * (lay.groundY - lay.ropeY) * 0.75;
+
+    return lay.ropeY + sag + vibration + fall;
   }
 
   // ---------- Dust ----------
@@ -201,6 +282,22 @@ class RopeComponent extends PositionComponent {
         radius: 2.5 * lay.k,
         maxLife: 0.5 + _rng.nextDouble() * 0.4,
       ));
+    }
+  }
+
+  /// A cloud of dust around every puller of [team] (used when they fall).
+  void _burstDust(_Layout lay, int team) {
+    for (final p in _pullersFor(team, lay)) {
+      for (var i = 0; i < 6; i++) {
+        _dust.add(_Dust(
+          x: p.x + (_rng.nextDouble() - 0.5) * 24 * lay.k,
+          y: lay.groundY + _rng.nextDouble() * 3 * lay.k,
+          vx: (_rng.nextDouble() - 0.5) * 40 * lay.k,
+          vy: -(8 + _rng.nextDouble() * 14) * lay.k,
+          radius: 3 * lay.k,
+          maxLife: 0.6 + _rng.nextDouble() * 0.5,
+        ));
+      }
     }
   }
 
@@ -279,7 +376,8 @@ class RopeComponent extends PositionComponent {
     required double phase,
     required double base,
   }) {
-    return base - amp * (math.sin(x / lay.w * math.pi * 2 * freq + phase) * 0.5 + 0.5);
+    return base -
+        amp * (math.sin(x / lay.w * math.pi * 2 * freq + phase) * 0.5 + 0.5);
   }
 
   void _paintHills(Canvas c, _Layout lay) {
@@ -304,12 +402,17 @@ class RopeComponent extends PositionComponent {
     final ts = lay.h * 0.035;
     for (final fraction in const [0.08, 0.27, 0.52, 0.74, 0.93]) {
       final x = lay.w * fraction;
-      final y = _hillY(x, lay, amp: farAmp, freq: 1.2, phase: 0.6, base: farBase);
+      final y =
+          _hillY(x, lay, amp: farAmp, freq: 1.2, phase: 0.6, base: farBase);
       c.drawRect(
         Rect.fromLTRB(x - ts * 0.12, y - ts * 0.6, x + ts * 0.12, y + ts * 0.1),
         _fill(const Color(0xFF7A5B32)),
       );
-      c.drawCircle(Offset(x, y - ts * 1.0), ts * 0.7, _fill(const Color(0xFF3F9A55)));
+      c.drawCircle(
+        Offset(x, y - ts * 1.0),
+        ts * 0.7,
+        _fill(const Color(0xFF3F9A55)),
+      );
       c.drawCircle(
         Offset(x - ts * 0.2, y - ts * 1.15),
         ts * 0.4,
@@ -346,7 +449,10 @@ class RopeComponent extends PositionComponent {
           (lay.h - lay.horizon) * math.pow(i / bands, 1.5).toDouble();
       final y1 = lay.horizon +
           (lay.h - lay.horizon) * math.pow((i + 1) / bands, 1.5).toDouble();
-      c.drawRect(Rect.fromLTRB(0, y0, lay.w, y1), _fill(const Color(0x14000000)));
+      c.drawRect(
+        Rect.fromLTRB(0, y0, lay.w, y1),
+        _fill(const Color(0x14000000)),
+      );
     }
   }
 
@@ -355,7 +461,13 @@ class RopeComponent extends PositionComponent {
     final baseY = lay.horizon + lay.h * 0.05;
     final spacing = s * 2.0;
     final count = (lay.w / spacing).ceil() + 1;
-    final excite = 0.35 + 0.65 * _shownPull.abs();
+
+    // The crowd jumps more when the rope is close to a win, and goes wild
+    // when the round is decided.
+    final excite = _finished
+        ? (_winner == 0 ? 0.6 : 1.6)
+        : 0.35 + 0.65 * _shownPull.abs() + 0.5 * _tension;
+
     const shirts = [
       Color(0xFF2461E8),
       Color(0xFFE8432B),
@@ -366,7 +478,8 @@ class RopeComponent extends PositionComponent {
 
     for (var i = 0; i < count; i++) {
       final x = i * spacing + s;
-      final jump = math.max(0.0, math.sin(_time * 7 + i * 1.7)) * s * 0.55 * excite;
+      final jump =
+          math.max(0.0, math.sin(_time * 7 + i * 1.7)) * s * 0.55 * excite;
       final skin = _Palette.skins[(i * 7 + i ~/ 2) % _Palette.skins.length];
       final shirt = shirts[(i * 7) % shirts.length];
       c.drawRRect(
@@ -403,6 +516,19 @@ class RopeComponent extends PositionComponent {
   void _paintFieldLines(Canvas c, _Layout lay) {
     final top = lay.horizon + lay.h * 0.07;
     final k = lay.k;
+
+    // The goal line the rope is heading for glows when a team is close.
+    if (_tension > 0) {
+      final towardTeam1 = _shownPull > 0;
+      final lineX = towardTeam1 ? lay.margin : lay.w - lay.margin;
+      final glow = towardTeam1 ? _Palette.team1 : _Palette.team2;
+      final pulse = 0.5 + 0.5 * math.sin(_clock * 11);
+      c.drawRect(
+        Rect.fromLTRB(lineX - 7 * k, top, lineX + 7 * k, lay.h),
+        _fill(glow.withValues(alpha: (0.15 + 0.30 * pulse) * _tension)),
+      );
+    }
+
     c.drawRect(
       Rect.fromLTRB(lay.w / 2 - 1.2 * k, top, lay.w / 2 + 1.2 * k, lay.h),
       _fill(const Color(0xAAFFFFFF)),
@@ -412,7 +538,12 @@ class RopeComponent extends PositionComponent {
       _fill(_Palette.team1.withValues(alpha: 0.85)),
     );
     c.drawRect(
-      Rect.fromLTRB(lay.w - lay.margin - 1.6 * k, top, lay.w - lay.margin + 1.6 * k, lay.h),
+      Rect.fromLTRB(
+        lay.w - lay.margin - 1.6 * k,
+        top,
+        lay.w - lay.margin + 1.6 * k,
+        lay.h,
+      ),
       _fill(_Palette.team2.withValues(alpha: 0.85)),
     );
   }
@@ -445,10 +576,16 @@ class RopeComponent extends PositionComponent {
       }
     }
     final k = lay.k;
-    c.drawPath(path.shift(Offset(0, 2.2 * k)), _stroke(const Color(0x40000000), 8.5 * k));
+    c.drawPath(
+      path.shift(Offset(0, 2.2 * k)),
+      _stroke(const Color(0x40000000), 8.5 * k),
+    );
     c.drawPath(path, _stroke(_Palette.ropeDark, 7.4 * k));
     c.drawPath(path, _stroke(_Palette.rope, 5.6 * k));
-    c.drawPath(path.shift(Offset(0, -1.4 * k)), _stroke(_Palette.ropeLight, 1.6 * k));
+    c.drawPath(
+      path.shift(Offset(0, -1.4 * k)),
+      _stroke(_Palette.ropeLight, 1.6 * k),
+    );
 
     // Twisted-strand marks
     final twist = _stroke(_Palette.ropeDark, 1.2 * k);
@@ -476,7 +613,11 @@ class RopeComponent extends PositionComponent {
       ..close();
     c.drawPath(ribbon, _fill(const Color(0xFFD7263D)));
     c.drawCircle(Offset(x, y), 5.4 * k, _fill(_Palette.ropeDark));
-    c.drawCircle(Offset(x - 1.2 * k, y - 1.2 * k), 3.2 * k, _fill(_Palette.rope));
+    c.drawCircle(
+      Offset(x - 1.2 * k, y - 1.2 * k),
+      3.2 * k,
+      _fill(_Palette.rope),
+    );
   }
 
   // ---------- Characters ----------
@@ -489,29 +630,33 @@ class RopeComponent extends PositionComponent {
     final sway = _sway(p);
     final bob = _bob(p);
     final lean = _lean(p);
+    final drop = _dropOf(p);
 
     c.save();
     c.translate(p.x, lay.groundY);
     c.scale(p.facing * lay.k, lay.k);
 
-    // Ground shadow
+    // Ground shadow stays on the ground even while a puller jumps.
     c.drawOval(
       Rect.fromCenter(center: const Offset(-4, 1), width: 64, height: 11),
       _fill(const Color(0x33000000)),
     );
 
-    final hipY = -46.0 + bob;
+    // Jumping winners leave the ground.
+    c.translate(0, _hopOf(p));
 
-    // Legs stay planted on the ground
+    final hipY = -46.0 + bob + drop;
+
+    // Legs stay planted on the ground (they fold as a loser sinks)
     final backFootX = -30 + sway * 2.5;
     final frontFootX = 13 - sway * 1.5;
     final backLeg = Path()
       ..moveTo(-3, hipY)
-      ..lineTo(-15, -25 + bob * 0.5)
+      ..lineTo(-15, -25 + bob * 0.5 + drop * 0.55)
       ..lineTo(backFootX, -3);
     final frontLeg = Path()
       ..moveTo(3, hipY)
-      ..lineTo(18, -27 + bob * 0.5)
+      ..lineTo(18, -27 + bob * 0.5 + drop * 0.55)
       ..lineTo(frontFootX, -3);
     c.drawPath(backLeg, _stroke(Color.lerp(pants, Colors.black, 0.25)!, 12));
     c.drawPath(frontLeg, _stroke(pants, 12));
@@ -586,18 +731,37 @@ class RopeComponent extends PositionComponent {
       Rect.fromLTRB(head.dx - 10.2, head.dy - 4.0, head.dx + 10.2, head.dy - 2.8),
       _fill(pants),
     );
-    // Face: eye, determined eyebrow, mouth, nose
+
+    // Face: eye, determined eyebrow, nose and a mouth that matches the mood
     c.drawCircle(head + const Offset(4.8, 2.0), 1.4, _fill(_Palette.ink));
     c.drawLine(
       head + const Offset(2.6, -0.6),
       head + const Offset(7.2, 0.4),
       _stroke(_Palette.ink, 1.3),
     );
-    c.drawLine(
-      head + const Offset(3.4, 6.2),
-      head + const Offset(7.0, 5.6),
-      _stroke(_Palette.ink, 1.2),
-    );
+    if (_isWinner(p)) {
+      // Big smile
+      c.drawArc(
+        Rect.fromCenter(
+          center: head + const Offset(5.4, 4.6),
+          width: 7,
+          height: 6,
+        ),
+        0.1,
+        math.pi - 0.2,
+        false,
+        _stroke(_Palette.ink, 1.3),
+      );
+    } else if (_isLoser(p)) {
+      // Open mouth: "oh no!"
+      c.drawCircle(head + const Offset(5.4, 6.2), 1.7, _fill(_Palette.ink));
+    } else {
+      c.drawLine(
+        head + const Offset(3.4, 6.2),
+        head + const Offset(7.0, 5.6),
+        _stroke(_Palette.ink, 1.2),
+      );
+    }
     c.drawCircle(head + const Offset(9.8, 2.8), 1.8, _fill(skin));
 
     c.restore();
@@ -606,7 +770,7 @@ class RopeComponent extends PositionComponent {
   /// Arms are drawn after the rope so the hands sit on top of it.
   void _paintArms(Canvas c, _Puller p, _Layout lay) {
     final lean = _lean(p);
-    final hipY = -46.0 + _bob(p);
+    final hipY = -46.0 + _bob(p) + _dropOf(p) + _hopOf(p);
 
     Offset toWorld(double lx, double ly) {
       final xr = lx * math.cos(lean) + ly * math.sin(lean);
@@ -617,24 +781,88 @@ class RopeComponent extends PositionComponent {
       );
     }
 
-    final nearGripX = p.x + p.facing * 16 * lay.k;
-    final farGripX = nearGripX + p.facing * 5 * lay.k;
-    final nearGrip = Offset(nearGripX, _ropeY(nearGripX, lay));
-    final farGrip = Offset(farGripX, _ropeY(farGripX, lay) + 0.8 * lay.k);
-
+    final k = lay.k;
     final jersey = _jersey(p);
     final skin = _skin(p);
+    final farSleeve = Color.lerp(jersey, Colors.black, 0.2)!;
+    final farSkin = Color.lerp(skin, Colors.black, 0.15)!;
+    final farShoulder = toWorld(2, -35);
+    final nearShoulder = toWorld(6, -34);
+
+    if (_isWinner(p)) {
+      // Both arms up in the air, waving.
+      final wave = math.sin(_time * 12 + _phase(p)) * 3 * k;
+      _drawArm(
+        c,
+        farShoulder,
+        farShoulder + Offset(-p.facing * 7 * k + wave, -24 * k),
+        farSleeve,
+        farSkin,
+        k,
+      );
+      _drawArm(
+        c,
+        nearShoulder,
+        nearShoulder + Offset(p.facing * 9 * k - wave, -26 * k),
+        jersey,
+        skin,
+        k,
+      );
+      return;
+    }
+
+    if (_isLoser(p)) {
+      // Arms thrown up and back while falling.
+      final flail = math.sin(_time * 14 + _phase(p)) * 3 * k;
+      _drawArm(
+        c,
+        farShoulder,
+        farShoulder + Offset(-p.facing * 16 * k, -14 * k + flail),
+        farSleeve,
+        farSkin,
+        k,
+      );
+      _drawArm(
+        c,
+        nearShoulder,
+        nearShoulder + Offset(-p.facing * 10 * k, -20 * k - flail),
+        jersey,
+        skin,
+        k,
+      );
+      return;
+    }
+
+    if (_winner == 0) {
+      // A tie: arms hang relaxed at the sides.
+      _drawArm(
+        c,
+        farShoulder,
+        farShoulder + Offset(p.facing * 3 * k, 20 * k),
+        farSleeve,
+        farSkin,
+        k,
+      );
+      _drawArm(
+        c,
+        nearShoulder,
+        nearShoulder + Offset(p.facing * 6 * k, 21 * k),
+        jersey,
+        skin,
+        k,
+      );
+      return;
+    }
+
+    // Normal play: both hands grip the rope.
+    final nearGripX = p.x + p.facing * 16 * k;
+    final farGripX = nearGripX + p.facing * 5 * k;
+    final nearGrip = Offset(nearGripX, _ropeY(nearGripX, lay));
+    final farGrip = Offset(farGripX, _ropeY(farGripX, lay) + 0.8 * k);
 
     // Far arm first (a little darker), then the near arm
-    _drawArm(
-      c,
-      toWorld(2, -35),
-      farGrip,
-      Color.lerp(jersey, Colors.black, 0.2)!,
-      Color.lerp(skin, Colors.black, 0.15)!,
-      lay.k,
-    );
-    _drawArm(c, toWorld(6, -34), nearGrip, jersey, skin, lay.k);
+    _drawArm(c, farShoulder, farGrip, farSleeve, farSkin, k);
+    _drawArm(c, nearShoulder, nearGrip, jersey, skin, k);
   }
 
   void _drawArm(
