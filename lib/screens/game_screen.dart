@@ -9,6 +9,7 @@ import '../models/game_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/pause_overlay.dart';
+import '../widgets/quit_confirm_overlay.dart';
 import '../widgets/question_banner.dart';
 import '../widgets/team_panel.dart';
 import '../widgets/win_overlay.dart';
@@ -34,6 +35,8 @@ class _GameScreenState extends State<GameScreen> {
   bool _finishHandled = false;
   bool _resultScheduled = false;
   bool _showResult = false;
+  bool _confirmingQuit = false;
+  bool _pausedForQuit = false;
 
   @override
   void initState() {
@@ -111,6 +114,32 @@ class _GameScreenState extends State<GameScreen> {
 
   /// Leaves the game and goes back to the start screen.
   void _quitGame() => Navigator.of(context).pop();
+  
+  /// Asks "really quit?". The round is paused while the question is open.
+  void _requestQuit() {
+    if (controller.isFinished || _confirmingQuit) return;
+
+    // Nothing to lose during the 3-2-1-GO countdown.
+    if (controller.isCountingDown) {
+      _quitGame();
+      return;
+    }
+
+    setState(() => _confirmingQuit = true);
+    if (controller.isPlaying) {
+      controller.pause();
+      _pausedForQuit = true;
+    }
+  }
+
+  /// "Keep playing": closes the question and continues the round.
+  void _stayInGame() {
+    setState(() => _confirmingQuit = false);
+    if (_pausedForQuit) {
+      _pausedForQuit = false;
+      controller.resume();
+    }
+  }
 
   /// Starts a fresh round with the same settings.
   void _playAgain() {
@@ -215,6 +244,25 @@ class _GameScreenState extends State<GameScreen> {
       },
     );
   }
+  /// Quit button (asks first, so a stray tap cannot end the game).
+  Widget _quitButton() {
+    return Tooltip(
+      message: AppStrings.quit,
+      child: Material(
+        color: Colors.red.shade50,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: _requestQuit,
+          child: const SizedBox(
+            width: 34,
+            height: 34,
+            child: Icon(Icons.close_rounded, size: 20, color: AppColors.team2),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _scoreboard() {
     return Container(
@@ -260,6 +308,8 @@ class _GameScreenState extends State<GameScreen> {
               _pauseButton(),
               const SizedBox(width: 8),
               _muteButton(),
+               const SizedBox(width: 8),
+              _quitButton(),
             ],
           ),
           _scoreboardChip(
@@ -369,6 +419,8 @@ class _GameScreenState extends State<GameScreen> {
           _pauseButton(),
           const SizedBox(height: 6),
           _muteButton(),
+          const SizedBox(height: 6),
+          _quitButton(),
         ],
       ),
     );
@@ -534,40 +586,57 @@ class _GameScreenState extends State<GameScreen> {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
-        return Scaffold(
-          body: Stack(
-            children: [
-              Positioned.fill(child: _board()),
-              if (controller.isCountingDown)
-                Positioned.fill(
-                  child: ScaledView(
-                    builder: (context, size, mode) =>
-                        CountdownOverlay(value: controller.countdownValue),
-                  ),
-                ),
-              if (controller.isPaused)
-                Positioned.fill(
-                  child: ScaledView(
-                    builder: (context, size, mode) => PauseOverlay(
-                      onResume: controller.resume,
-                      onQuit: _quitGame,
+        return PopScope(
+          // Once the round is over, Back simply leaves. During a round it
+          // asks first, so a stray tap on Back cannot throw the game away.
+          canPop: controller.isFinished,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) _requestQuit();
+          },
+          child: Scaffold(
+            body: Stack(
+              children: [
+                Positioned.fill(child: _board()),
+                if (controller.isCountingDown)
+                  Positioned.fill(
+                    child: ScaledView(
+                      builder: (context, size, mode) =>
+                          CountdownOverlay(value: controller.countdownValue),
                     ),
                   ),
-                ),
-              if (controller.isFinished && _showResult)
-                Positioned.fill(
-                  child: ScaledView(
-                    builder: (context, size, mode) => WinOverlay(
-                      winner: controller.winner,
-                      score1: controller.scoreFor(1),
-                      score2: controller.scoreFor(2),
-                      faceToFace: mode == BoardMode.faceToFace,
-                      onPlayAgain: _playAgain,
-                      onMenu: _quitGame,
+                if (controller.isPaused && !_confirmingQuit)
+                  Positioned.fill(
+                    child: ScaledView(
+                      builder: (context, size, mode) => PauseOverlay(
+                        onResume: controller.resume,
+                        onQuit: _quitGame,
+                      ),
                     ),
                   ),
-                ),
-            ],
+                if (_confirmingQuit)
+                  Positioned.fill(
+                    child: ScaledView(
+                      builder: (context, size, mode) => QuitConfirmOverlay(
+                        onStay: _stayInGame,
+                        onQuit: _quitGame,
+                      ),
+                    ),
+                  ),
+                if (controller.isFinished && _showResult)
+                  Positioned.fill(
+                    child: ScaledView(
+                      builder: (context, size, mode) => WinOverlay(
+                        winner: controller.winner,
+                        score1: controller.scoreFor(1),
+                        score2: controller.scoreFor(2),
+                        faceToFace: mode == BoardMode.faceToFace,
+                        onPlayAgain: _playAgain,
+                        onMenu: _quitGame,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         );
       },

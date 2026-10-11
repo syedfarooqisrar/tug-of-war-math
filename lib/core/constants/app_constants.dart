@@ -93,6 +93,10 @@ class AppStrings {
   static const String tieSubtitle = 'Evenly matched — run it back!';
   static const String winSubtitle = 'Great tug-of-war battle!';
   static const String backToMenu = 'Back to menu';
+  static const String quit = 'Quit';
+  static const String quitTitle = 'Quit this game?';
+  static const String quitMessage = 'The current round will be lost.';
+  static const String keepPlaying = 'Keep playing';
   static const String playAgain = 'Play Again';
   static String teamWins(int team) => 'Team $team Wins!';
   static String matchPoint(int team) => 'TEAM $team · MATCH POINT';
