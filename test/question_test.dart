@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tug_of_war_math/models/game_settings.dart';
-import 'package:tug_of_war_math/models/question.dart';
+import 'package:mathpull/models/game_settings.dart';
+import 'package:mathpull/models/question.dart';
 
 void main() {
   final pattern = RegExp(r'^(\d+) ([+−×÷]) (\d+) = \?$');

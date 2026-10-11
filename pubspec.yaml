@@ -1,5 +1,5 @@
-name: tug_of_war_math
-description: A Flutter + Flame tug-of-war multiplication game for Android, iOS, and Web.
+name: mathpull
+description: MathPull, a two-team maths tug-of-war game for Android, iOS and Web.
 publish_to: 'none'
 version: 1.0.0+1
 
