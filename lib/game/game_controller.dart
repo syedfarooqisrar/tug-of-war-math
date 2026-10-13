@@ -1,4 +1,7 @@
+// 📁 FILE: lib/game/game_controller.dart
+// 📌 WHAT: Game rules + a computer opponent (bot) that plays Team 2
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../core/constants/app_constants.dart';
 import '../models/game_settings.dart';
@@ -11,18 +14,29 @@ enum AnswerResult { ignored, correct, wrong }
 enum GamePhase { countdown, playing, paused, finished }
 
 /// Holds every rule of one round: countdown, questions, typed answers,
-/// scores, streaks, the timer and the winner. The screen only reads from
-/// it and calls its methods.
+/// scores, streaks, the timer, the bot and the winner. The screen only
+/// reads from it and calls its methods.
 class GameController extends ChangeNotifier {
-  GameController({required this.settings}) {
+  GameController({required this.settings, Random? random})
+      : _random = random ?? Random() {
     _timeLeft = settings.roundSeconds;
     _countdown = GameConfig.countdownSeconds;
     _shared = _newQuestion();
     _question1 = _newQuestion();
     _question2 = _newQuestion(avoid: _question1);
+    _botWaitMs = _rollBotThink();
   }
 
   final GameSettings settings;
+
+  /// Source of randomness for the bot. Tests pass a seeded [Random].
+  final Random _random;
+
+  // How often the bot's clock moves, and how long it takes to press a
+  // digit and then the ✓ button (so the player can see it "typing").
+  static const int _botTickMs = 100;
+  static const int _botDigitMs = 220;
+  static const int _botSubmitMs = 280;
 
   // Classic mode: one question per team.
   late Question _question1;
@@ -57,10 +71,33 @@ class GameController extends ChangeNotifier {
   int _lastPoints1 = 0;
   int _lastPoints2 = 0;
 
+  // ---------- Bot state ----------
+
+  Timer? _botTimer;
+
+  /// Milliseconds of "round time" until the bot does its next action.
+  int _botWaitMs = 0;
+
+  /// The answer the bot is typing right now (null while it is thinking).
+  String? _botPlan;
+
+  /// How many digits of [_botPlan] are already typed.
+  int _botDigit = 0;
+
+  /// The question the bot started answering. If it changes (a human won
+  /// the shared question in Speed Race) the bot drops its plan.
+  Question? _botQuestion;
+
   // ---------- Read-only state for the screen ----------
 
   bool get isSpeedRace => settings.mode == GameMode.speedRace;
   int get winPulls => settings.winPulls;
+
+  /// True when Team 2 is played by the computer.
+  bool get hasBot => settings.hasBot;
+
+  /// True while the bot has digits typed and is about to press ✓.
+  bool get isBotTyping => hasBot && _input2.isNotEmpty;
 
   /// The question a team has to answer. In Speed Race both teams
   /// get the same one.
@@ -122,9 +159,18 @@ class GameController extends ChangeNotifier {
   void start() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+
+    _botTimer?.cancel();
+    if (hasBot) {
+      _botTimer = Timer.periodic(
+        const Duration(milliseconds: _botTickMs),
+        (_) => _advanceBot(_botTickMs),
+      );
+    }
   }
 
   /// Freezes the round. Only works while the round is being played.
+  /// The bot freezes too, because its clock only runs while playing.
   void pause() {
     if (!isPlaying) return;
     _phase = GamePhase.paused;
@@ -139,15 +185,13 @@ class GameController extends ChangeNotifier {
   }
 
   void pressDigit(int team, String digit) {
-    if (!isPlaying) return;
-    final current = inputFor(team);
-    if (current.length >= GameConfig.maxAnswerDigits) return;
-    _setInput(team, current + digit);
+    if (!isPlaying || _isBotTeam(team)) return;
+    _appendDigit(team, digit);
     notifyListeners();
   }
 
   void clearInput(int team) {
-    if (!isPlaying) return;
+    if (!isPlaying || _isBotTeam(team)) return;
     _setInput(team, '');
     notifyListeners();
   }
@@ -155,6 +199,23 @@ class GameController extends ChangeNotifier {
   /// Checks the typed answer. Returns what happened so the screen can
   /// react (animation, sound, and so on).
   AnswerResult submit(int team) {
+    if (_isBotTeam(team)) return AnswerResult.ignored;
+    return _submit(team);
+  }
+
+  // ---------- Internal helpers ----------
+
+  /// True for Team 2 when the computer plays it. Touches on that team's
+  /// keypad are ignored; only the bot itself can type for it.
+  bool _isBotTeam(int team) => hasBot && team == 2;
+
+  void _appendDigit(int team, String digit) {
+    final current = inputFor(team);
+    if (current.length >= GameConfig.maxAnswerDigits) return;
+    _setInput(team, current + digit);
+  }
+
+  AnswerResult _submit(int team) {
     if (!isPlaying) return AnswerResult.ignored;
     final typed = inputFor(team);
     if (typed.isEmpty) return AnswerResult.ignored;
@@ -195,8 +256,6 @@ class GameController extends ChangeNotifier {
     return result;
   }
 
-  // ---------- Internal helpers ----------
-
   void _tick() {
     switch (_phase) {
       case GamePhase.countdown:
@@ -226,6 +285,7 @@ class GameController extends ChangeNotifier {
     _winner = winner;
     _phase = GamePhase.finished;
     _timer?.cancel();
+    _botTimer?.cancel();
   }
 
   int _otherTeam(int team) => team == 1 ? 2 : 1;
@@ -283,9 +343,108 @@ class GameController extends ChangeNotifier {
     return question;
   }
 
+  // ---------- Bot ----------
+
+  /// How long the bot thinks before its next answer, in milliseconds.
+  int _rollBotThink() {
+    final time = settings.botLevel.thinkTime(
+      settings.difficulty,
+      _random.nextDouble(),
+    );
+    return max(1, time.inMilliseconds);
+  }
+
+  /// A wrong answer that looks believable: close to the right one,
+  /// never equal to it and never negative.
+  @visibleForTesting
+  static int wrongAnswerFor(int answer, Random random) {
+    var delta = random.nextInt(3) + 1; // 1, 2 or 3
+    if (random.nextBool()) delta = -delta;
+    var wrong = answer + delta;
+    if (wrong < 0) wrong = answer + delta.abs();
+    return wrong;
+  }
+
+  /// Decides what the bot will type for [question] (right or wrong,
+  /// depending on its level).
+  String _planBotAnswer(Question question) {
+    final correct = question.answer;
+    final isRight = _random.nextDouble() < settings.botLevel.accuracy;
+    final text = '${isRight ? correct : wrongAnswerFor(correct, _random)}';
+    return text.length > GameConfig.maxAnswerDigits ? '$correct' : text;
+  }
+
+  void _resetBotPlan() {
+    _botPlan = null;
+    _botDigit = 0;
+    _botQuestion = null;
+  }
+
+  /// Moves the bot's clock forward. It only runs while the round is
+  /// being played, so pause and countdown freeze the bot.
+  void _advanceBot(int milliseconds) {
+    if (!hasBot) return;
+    var remaining = milliseconds;
+    while (remaining > 0 && isPlaying) {
+      final step = min(remaining, _botWaitMs);
+      _botWaitMs -= step;
+      remaining -= step;
+      if (_botWaitMs <= 0) _botAct();
+    }
+  }
+
+  /// One bot action: start a plan, press the next digit, or press ✓.
+  void _botAct() {
+    final question = questionFor(2);
+
+    // The question changed under the bot (Speed Race: Team 1 scored).
+    // Forget the half-typed answer and think about the new question.
+    if (_botPlan != null && !identical(_botQuestion, question)) {
+      _resetBotPlan();
+      _setInput(2, '');
+      _botWaitMs = _rollBotThink();
+      notifyListeners();
+      return;
+    }
+
+    if (_botPlan == null) {
+      _botPlan = _planBotAnswer(question);
+      _botQuestion = question;
+      _botDigit = 0;
+    }
+
+    final plan = _botPlan!;
+    if (_botDigit < plan.length) {
+      _appendDigit(2, plan[_botDigit]);
+      _botDigit++;
+      _botWaitMs = _botDigit < plan.length ? _botDigitMs : _botSubmitMs;
+      notifyListeners();
+      return;
+    }
+
+    // All digits are typed: press ✓ and start thinking about the next one.
+    _resetBotPlan();
+    _botWaitMs = _rollBotThink();
+    _submit(2);
+  }
+
+  // ---------- Hooks for unit tests only ----------
+
+  /// Skips the countdown so tests can start playing at once.
+  @visibleForTesting
+  void debugStartPlaying() {
+    _phase = GamePhase.playing;
+    notifyListeners();
+  }
+
+  /// Moves the bot's clock forward without waiting in real time.
+  @visibleForTesting
+  void debugAdvanceBot(int milliseconds) => _advanceBot(milliseconds);
+
   @override
   void dispose() {
     _timer?.cancel();
+    _botTimer?.cancel();
     super.dispose();
   }
 }
