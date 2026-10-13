@@ -28,6 +28,12 @@ class SoundService {
 
   final Map<Sfx, AudioPlayer> _players = {};
   bool _started = false;
+  
+  /// Sound effects mix with other audio (for example music playing on the
+  /// phone) instead of grabbing audio focus.
+  static final AudioContext _audioContext = AudioContextConfig(
+    focus: AudioContextConfigFocus.mixWithOthers,
+  ).build();
 
   /// Loads all sounds once. Safe to call many times.
   Future<void> init() async {
@@ -37,6 +43,7 @@ class SoundService {
       await AudioCache.instance.loadAll(_files.values.toList());
       for (final entry in _files.entries) {
         final player = AudioPlayer();
+        await player.setAudioContext(_audioContext);
         await player.setPlayerMode(PlayerMode.lowLatency);
         await player.setReleaseMode(ReleaseMode.stop);
         _players[entry.key] = player;
