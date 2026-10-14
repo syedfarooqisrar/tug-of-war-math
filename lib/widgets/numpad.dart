@@ -1,3 +1,5 @@
+// 📁 FILE: lib/widgets/numpad.dart
+// 📌 WHAT: Flat, minimalist numpad with icon keys, press tint and screen-reader labels
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
@@ -15,39 +17,34 @@ class Numpad extends StatelessWidget {
     required this.onSubmit,
   });
 
+  static const String _clearKey = 'clr';
+  static const String _submitKey = 'go';
+
+  static const String _clearLabel = 'Clear';
+  static const String _submitLabel = 'Submit answer';
+
+  static const double _keyGap = 4;
+
   @override
   Widget build(BuildContext context) {
-    final rows = [
+    const rows = [
       ['1', '2', '3'],
       ['4', '5', '6'],
       ['7', '8', '9'],
-      ['clr', '0', 'go'],
+      [_clearKey, '0', _submitKey],
     ];
 
     return Column(
       children: rows.map((row) {
         return Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3.5),
+            padding: const EdgeInsets.symmetric(vertical: _keyGap),
             child: Row(
               children: row.map((key) {
-                Widget button;
-                if (key == 'clr') {
-                  button = _NumButton(label: '✕', color: Colors.grey.shade400, onTap: onClear);
-                } else if (key == 'go') {
-                  button = _NumButton(label: '✓', color: accentColor, onTap: onSubmit);
-                } else {
-                  button = _NumButton(
-                    label: key,
-                    color: Colors.white,
-                    textColor: AppColors.ink,
-                    onTap: () => onDigit(key),
-                  );
-                }
                 return Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3.5),
-                    child: button,
+                    padding: const EdgeInsets.symmetric(horizontal: _keyGap),
+                    child: _buildKey(key),
                   ),
                 );
               }).toList(),
@@ -57,19 +54,66 @@ class Numpad extends StatelessWidget {
       }).toList(),
     );
   }
+
+  Widget _buildKey(String key) {
+    switch (key) {
+      case _clearKey:
+        return _NumButton(
+          semanticLabel: _clearLabel,
+          background: AppColors.backgroundDeep,
+          pressedBackground: AppColors.border,
+          borderColor: Colors.transparent,
+          onTap: onClear,
+          child: const Icon(
+            Icons.close_rounded,
+            size: 24,
+            color: AppColors.inkMuted,
+          ),
+        );
+      case _submitKey:
+        return _NumButton(
+          semanticLabel: _submitLabel,
+          background: accentColor,
+          pressedBackground: Color.lerp(accentColor, Colors.black, 0.18)!,
+          borderColor: Colors.transparent,
+          onTap: onSubmit,
+          child: const Icon(
+            Icons.check_rounded,
+            size: 28,
+            color: Colors.white,
+          ),
+        );
+      default:
+        return _NumButton(
+          semanticLabel: key,
+          background: AppColors.surface,
+          pressedBackground: Color.alphaBlend(
+            accentColor.withValues(alpha: 0.14),
+            AppColors.surface,
+          ),
+          borderColor: AppColors.border,
+          onTap: () => onDigit(key),
+          child: Text(key, style: AppText.number(size: AppText.sizeDisplay)),
+        );
+    }
+  }
 }
 
 class _NumButton extends StatefulWidget {
-  final String label;
-  final Color color;
-  final Color textColor;
+  final String semanticLabel;
+  final Color background;
+  final Color pressedBackground;
+  final Color borderColor;
   final VoidCallback onTap;
+  final Widget child;
 
   const _NumButton({
-    required this.label,
-    required this.color,
-    this.textColor = Colors.white,
+    required this.semanticLabel,
+    required this.background,
+    required this.pressedBackground,
+    required this.borderColor,
     required this.onTap,
+    required this.child,
   });
 
   @override
@@ -79,32 +123,37 @@ class _NumButton extends StatefulWidget {
 class _NumButtonState extends State<_NumButton> {
   bool _pressed = false;
 
+  void _setPressed(bool value) {
+    if (_pressed != value) setState(() => _pressed = value);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
+    return Semantics(
+      button: true,
+      label: widget.semanticLabel,
+      excludeSemantics: true,
       onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _pressed ? 0.90 : 1.0,
-        duration: const Duration(milliseconds: 90),
-        curve: Curves.easeOut,
-        child: Container(
-          decoration: BoxDecoration(
-            color: widget.color,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: _pressed
-                ? []
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => _setPressed(true),
+        onTapUp: (_) => _setPressed(false),
+        onTapCancel: () => _setPressed(false),
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: _pressed ? 0.95 : 1.0,
+          duration: const Duration(milliseconds: 90),
+          curve: Curves.easeOut,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 90),
+            decoration: BoxDecoration(
+              color: _pressed ? widget.pressedBackground : widget.background,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              border: Border.all(color: widget.borderColor, width: 1.5),
+            ),
+            alignment: Alignment.center,
+            child: FittedBox(fit: BoxFit.scaleDown, child: widget.child),
           ),
-          alignment: Alignment.center,
-          child: Text(widget.label, style: AppText.number(size: 22, color: widget.textColor)),
         ),
       ),
     );
