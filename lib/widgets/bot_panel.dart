@@ -1,5 +1,5 @@
-// 📁 FILE: lib/widgets/bot_panel.dart   (NEW FILE)
-// 📌 WHAT: Read-only panel for the computer opponent: avatar, score, streak, question and the answer it is typing
+// 📁 FILE: lib/widgets/bot_panel.dart
+// 📌 WHAT: Clean read-only panel for the computer opponent (same look as the team panel)
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -51,10 +51,11 @@ class BotPanel extends StatefulWidget {
 
 class _BotPanelState extends State<BotPanel>
     with SingleTickerProviderStateMixin {
-  static const Color _flashGreen = Color(0xFF2ECC71);
-  static const Color _flashRed = Color(0xFFD32F2F);
-  static const Color _flashFire = Color(0xFFFFA000);
-  static const Color _fireOrange = Color(0xFFFF6D00);
+  /// Darker orange for text on the light orange badge (readable).
+  static const Color _fireText = Color(0xFFC2410C);
+
+  /// How strong the right/wrong color flash starts (fades to 0).
+  static const double _flashStrength = 0.22;
 
   /// Below this height the panel switches to a slim one-row layout
   /// (the bot sits at the top of a tall screen).
@@ -65,6 +66,8 @@ class _BotPanelState extends State<BotPanel>
   int _playingPoints = 1;
 
   bool get _onFire => widget.streak >= GameConfig.streakForBonus;
+
+  Color get _textColor => Color.lerp(widget.color, Colors.black, 0.25)!;
 
   @override
   void initState() {
@@ -110,8 +113,8 @@ class _BotPanelState extends State<BotPanel>
               : 0.0;
 
           final flashColor = playing == AnswerResult.correct
-              ? (_playingPoints > 1 ? _flashFire : _flashGreen)
-              : _flashRed;
+              ? (_playingPoints > 1 ? AppColors.fire : AppColors.success)
+              : AppColors.danger;
 
           return Transform.translate(
             offset: Offset(shake, 0),
@@ -125,8 +128,10 @@ class _BotPanelState extends State<BotPanel>
                     child: IgnorePointer(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: flashColor.withValues(alpha: 0.38 * (1 - t)),
-                          borderRadius: BorderRadius.circular(24),
+                          color: flashColor.withValues(
+                            alpha: _flashStrength * (1 - t),
+                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
                         ),
                       ),
                     ),
@@ -140,33 +145,21 @@ class _BotPanelState extends State<BotPanel>
   }
 
   Widget _panel() {
-    final darkColor = Color.lerp(widget.color, Colors.black, 0.22)!;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxHeight < _compactBelowHeight;
 
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.96),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: widget.color.withValues(alpha: 0.35),
-                blurRadius: 22,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.border, width: 1.5),
+            boxShadow: AppShadows.card,
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              _header(darkColor, compact),
+              _header(compact),
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.all(compact ? 8 : 12),
@@ -201,7 +194,7 @@ class _BotPanelState extends State<BotPanel>
     );
   }
 
-  /// Roomy layout (landscape side panel): big avatar, question, answer.
+  /// Roomy layout (landscape side panel): big robot icon, question, answer.
   Widget _fullBody(double width) {
     return Center(
       child: FittedBox(
@@ -211,7 +204,11 @@ class _BotPanelState extends State<BotPanel>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('🤖', style: TextStyle(fontSize: 56)),
+              Icon(
+                Icons.smart_toy_rounded,
+                size: 56,
+                color: widget.color.withValues(alpha: 0.85),
+              ),
               const SizedBox(height: 12),
               if (widget.showQuestion) ...[
                 _questionCard(false),
@@ -225,27 +222,23 @@ class _BotPanelState extends State<BotPanel>
     );
   }
 
-  Widget _header(Color darkColor, bool compact) {
+  /// Flat header: light team tint, a robot icon, the name, the score pill
+  /// and the streak meter.
+  Widget _header(bool compact) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(vertical: compact ? 6 : 10, horizontal: 8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [widget.color, darkColor],
-        ),
-      ),
+      color: widget.lightColor,
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🤖', style: TextStyle(fontSize: 18)),
-            const SizedBox(width: 6),
+            Icon(Icons.smart_toy_rounded, size: 20, color: widget.color),
+            const SizedBox(width: 8),
             Text(
               widget.label,
-              style: AppText.heading(size: 16, color: Colors.white),
+              style: AppText.heading(size: 16, color: _textColor),
             ),
             const SizedBox(width: 10),
             _scoreBadge(),
@@ -262,15 +255,8 @@ class _BotPanelState extends State<BotPanel>
       constraints: const BoxConstraints(minWidth: 34),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: widget.color,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
@@ -282,7 +268,7 @@ class _BotPanelState extends State<BotPanel>
           '${widget.score}',
           key: ValueKey(widget.score),
           textAlign: TextAlign.center,
-          style: AppText.number(size: 17, color: widget.color),
+          style: AppText.number(size: 17, color: Colors.white),
         ),
       ),
     );
@@ -300,8 +286,8 @@ class _BotPanelState extends State<BotPanel>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: i < widget.streak
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: 0.3),
+                  ? widget.color
+                  : widget.color.withValues(alpha: 0.25),
             ),
           ),
       ],
@@ -312,14 +298,9 @@ class _BotPanelState extends State<BotPanel>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.fire.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: _fireOrange.withValues(alpha: 0.6),
-            blurRadius: 8,
-          ),
-        ],
+        border: Border.all(color: AppColors.fire, width: 1.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -327,11 +308,11 @@ class _BotPanelState extends State<BotPanel>
           const Icon(
             Icons.local_fire_department_rounded,
             size: 16,
-            color: _fireOrange,
+            color: AppColors.fire,
           ),
           Text(
             '×${GameConfig.bonusPoints}',
-            style: AppText.number(size: 14, color: _fireOrange),
+            style: AppText.number(size: 14, color: _fireText),
           ),
         ],
       ),
@@ -343,23 +324,15 @@ class _BotPanelState extends State<BotPanel>
       width: double.infinity,
       padding: EdgeInsets.symmetric(vertical: tight ? 6 : 12, horizontal: 8),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [widget.lightColor, Colors.white],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: widget.color.withValues(alpha: 0.25),
-          width: 2,
-        ),
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       alignment: Alignment.center,
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Text(
           widget.questionText,
-          style: AppText.number(size: tight ? 22 : 28),
+          style: AppText.number(size: tight ? 22 : AppText.sizeDisplay),
         ),
       ),
     );
@@ -373,19 +346,19 @@ class _BotPanelState extends State<BotPanel>
       width: double.infinity,
       height: tight ? 44 : 46,
       decoration: BoxDecoration(
-        color: hasInput ? widget.lightColor : Colors.white,
+        color: hasInput ? widget.lightColor : AppColors.surface,
         border: Border.all(
-          color: hasInput ? widget.color : widget.color.withValues(alpha: 0.35),
-          width: 2.5,
+          color: hasInput ? widget.color : AppColors.border,
+          width: 2,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       alignment: Alignment.center,
       child: Text(
         hasInput ? widget.currentInput : '—',
         style: AppText.number(
           size: tight ? 20 : 24,
-          color: hasInput ? AppColors.ink : Colors.grey.shade400,
+          color: hasInput ? AppColors.ink : AppColors.inkFaint,
         ).copyWith(letterSpacing: hasInput ? 3 : 0),
       ),
     );

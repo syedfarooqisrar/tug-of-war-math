@@ -1,3 +1,5 @@
+// 📁 FILE: lib/widgets/team_panel.dart
+// 📌 WHAT: Clean team panel: flat tinted header, score pill, flat question and answer boxes
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -8,6 +10,9 @@ import 'numpad.dart';
 
 class TeamPanel extends StatefulWidget {
   final String teamLabel;
+
+  /// Not used any more (the header shows a color dot instead of an emoji).
+  /// Kept so existing callers still compile; it will be removed later.
   final String flagEmoji;
   final Color color;
   final Color lightColor;
@@ -36,7 +41,7 @@ class TeamPanel extends StatefulWidget {
   const TeamPanel({
     super.key,
     required this.teamLabel,
-    required this.flagEmoji,
+    this.flagEmoji = '',
     required this.color,
     required this.lightColor,
     required this.score,
@@ -57,11 +62,11 @@ class TeamPanel extends StatefulWidget {
 }
 
 class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
-  static const Color _flashGreen = Color(0xFF2ECC71);
-  static const Color _flashRed = Color(0xFFD32F2F);
-  static const Color _flashFire = Color(0xFFFFA000);
-  static const Color _plusOneGreen = Color(0xFF1B8F4A);
-  static const Color _fireOrange = Color(0xFFFF6D00);
+  /// Darker orange for text on the light orange badge (readable).
+  static const Color _fireText = Color(0xFFC2410C);
+
+  /// How strong the right/wrong color flash starts (fades to 0).
+  static const double _flashStrength = 0.22;
 
   late final AnimationController _anim;
   late final AnimationController _flame;
@@ -110,58 +115,66 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  Color get _textColor => Color.lerp(widget.color, Colors.black, 0.25)!;
+
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _anim,
-      child: _panel(),
-      builder: (context, panel) {
-        final t = _anim.value;
-        final playing = _playing;
+    return Semantics(
+      container: true,
+      label: '${widget.teamLabel}, score ${widget.score}',
+      child: AnimatedBuilder(
+        animation: _anim,
+        child: _panel(),
+        builder: (context, panel) {
+          final t = _anim.value;
+          final playing = _playing;
 
-        // Wrong answer: shake sideways, getting weaker over time.
-        final shake = playing == AnswerResult.wrong
-            ? math.sin(t * math.pi * 6) * 9 * (1 - t)
-            : 0.0;
+          // Wrong answer: shake sideways, getting weaker over time.
+          final shake = playing == AnswerResult.wrong
+              ? math.sin(t * math.pi * 6) * 9 * (1 - t)
+              : 0.0;
 
-        final flashColor = playing == AnswerResult.correct
-            ? (_playingPoints > 1 ? _flashFire : _flashGreen)
-            : _flashRed;
+          final flashColor = playing == AnswerResult.correct
+              ? (_playingPoints > 1 ? AppColors.fire : AppColors.success)
+              : AppColors.danger;
 
-        return Transform.translate(
-          offset: Offset(shake, 0),
-          child: Stack(
-            fit: StackFit.expand,
-            clipBehavior: Clip.none,
-            children: [
-              panel!,
-              if (playing != null)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: flashColor.withValues(alpha: 0.38 * (1 - t)),
-                        borderRadius: BorderRadius.circular(24),
+          return Transform.translate(
+            offset: Offset(shake, 0),
+            child: Stack(
+              fit: StackFit.expand,
+              clipBehavior: Clip.none,
+              children: [
+                panel!,
+                if (playing != null)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: flashColor.withValues(
+                            alpha: _flashStrength * (1 - t),
+                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              if (playing == AnswerResult.correct)
-                Positioned(
-                  top: 64 - 34 * t,
-                  left: 0,
-                  right: 0,
-                  child: IgnorePointer(
-                    child: Opacity(
-                      opacity: 1 - t,
-                      child: Center(child: _pointsPopup()),
+                if (playing == AnswerResult.correct)
+                  Positioned(
+                    top: 64 - 34 * t,
+                    left: 0,
+                    right: 0,
+                    child: IgnorePointer(
+                      child: Opacity(
+                        opacity: 1 - t,
+                        child: Center(child: _pointsPopup()),
+                      ),
                     ),
                   ),
-                ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -174,22 +187,22 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
           const Icon(
             Icons.local_fire_department_rounded,
             size: 34,
-            color: _fireOrange,
+            color: AppColors.fire,
           ),
           Text(
             '+$_playingPoints',
-            style: AppText.heading(size: 38, color: _fireOrange),
+            style: AppText.heading(size: 38, color: AppColors.fire),
           ),
         ],
       );
     }
-    return Text('+1', style: AppText.heading(size: 34, color: _plusOneGreen));
+    return Text(
+      '+1',
+      style: AppText.heading(size: 34, color: AppColors.success),
+    );
   }
 
   Widget _panel() {
-    final color = widget.color;
-    final darkColor = Color.lerp(color, Colors.black, 0.22)!;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         // On a short panel (phone held upright) shrink the top parts so
@@ -202,25 +215,15 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
 
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.96),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.35),
-                blurRadius: 22,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.border, width: 1.5),
+            boxShadow: AppShadows.card,
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              _header(darkColor, tight),
+              _header(tight),
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.all(tight ? 8 : 10),
@@ -248,7 +251,7 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
                       SizedBox(height: tight ? 6 : 10),
                       Expanded(
                         child: Numpad(
-                          accentColor: color,
+                          accentColor: widget.color,
                           onDigit: widget.onDigit,
                           onClear: widget.onClear,
                           onSubmit: widget.onSubmit,
@@ -265,27 +268,30 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
     );
   }
 
-  Widget _header(Color darkColor, bool tight) {
+  /// Flat header: light team tint, a color dot, the team name, the score
+  /// pill and the streak meter.
+  Widget _header(bool tight) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(vertical: tight ? 6 : 10, horizontal: 8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [widget.color, darkColor],
-        ),
-      ),
+      color: widget.lightColor,
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(widget.flagEmoji, style: const TextStyle(fontSize: 18)),
-            const SizedBox(width: 6),
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: widget.color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
             Text(
               widget.teamLabel,
-              style: AppText.heading(size: 16, color: Colors.white),
+              style: AppText.heading(size: 16, color: _textColor),
             ),
             const SizedBox(width: 10),
             _scoreBadge(),
@@ -297,21 +303,14 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
     );
   }
 
-  /// White badge. The number pops in whenever the score changes.
+  /// Solid team-color pill. The number pops in whenever the score changes.
   Widget _scoreBadge() {
     return Container(
       constraints: const BoxConstraints(minWidth: 34),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: widget.color,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
@@ -323,7 +322,7 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
           '${widget.score}',
           key: ValueKey(widget.score),
           textAlign: TextAlign.center,
-          style: AppText.number(size: 17, color: widget.color),
+          style: AppText.number(size: 17, color: Colors.white),
         ),
       ),
     );
@@ -353,8 +352,8 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: i < widget.streak
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: 0.3),
+                  ? widget.color
+                  : widget.color.withValues(alpha: 0.25),
             ),
           ),
       ],
@@ -364,20 +363,15 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
   Widget _fireBadge() {
     return ScaleTransition(
       key: const ValueKey('fire'),
-      scale: Tween<double>(begin: 0.92, end: 1.08).animate(
+      scale: Tween<double>(begin: 0.94, end: 1.06).animate(
         CurvedAnimation(parent: _flame, curve: Curves.easeInOut),
       ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.fire.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: _fireOrange.withValues(alpha: 0.6),
-              blurRadius: 8,
-            ),
-          ],
+          border: Border.all(color: AppColors.fire, width: 1.5),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -385,11 +379,11 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
             const Icon(
               Icons.local_fire_department_rounded,
               size: 16,
-              color: _fireOrange,
+              color: AppColors.fire,
             ),
             Text(
               '×${GameConfig.bonusPoints}',
-              style: AppText.number(size: 14, color: _fireOrange),
+              style: AppText.number(size: 14, color: _fireText),
             ),
           ],
         ),
@@ -402,30 +396,22 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
       width: double.infinity,
       padding: EdgeInsets.symmetric(vertical: tight ? 6 : 12, horizontal: 8),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [widget.lightColor, Colors.white],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: widget.color.withValues(alpha: 0.25),
-          width: 2,
-        ),
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       alignment: Alignment.center,
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Text(
           widget.questionText,
-          style: AppText.number(size: tight ? 22 : 28),
+          style: AppText.number(size: tight ? 22 : AppText.sizeDisplay),
         ),
       ),
     );
   }
 
-  /// Shows what the team has typed. It lights up in the team color
-  /// as soon as there is at least one digit.
+  /// Shows what the team has typed. The border is in the team color and
+  /// the box gets a light tint as soon as there is at least one digit.
   Widget _answerBox(bool tight) {
     final hasInput = widget.currentInput.isNotEmpty;
     return AnimatedContainer(
@@ -433,19 +419,19 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
       width: double.infinity,
       height: tight ? 36 : 46,
       decoration: BoxDecoration(
-        color: hasInput ? widget.lightColor : Colors.white,
+        color: hasInput ? widget.lightColor : AppColors.surface,
         border: Border.all(
-          color: hasInput ? widget.color : widget.color.withValues(alpha: 0.35),
-          width: 2.5,
+          color: hasInput ? widget.color : AppColors.border,
+          width: 2,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       alignment: Alignment.center,
       child: Text(
         hasInput ? widget.currentInput : '—',
         style: AppText.number(
           size: tight ? 20 : 24,
-          color: hasInput ? AppColors.ink : Colors.grey.shade400,
+          color: hasInput ? AppColors.ink : AppColors.inkFaint,
         ).copyWith(letterSpacing: hasInput ? 3 : 0),
       ),
     );
