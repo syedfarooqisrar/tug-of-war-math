@@ -714,6 +714,7 @@ class _GameScreenState extends State<GameScreen> {
                         // so no upside-down copy of the result.
                         faceToFace: mode == BoardMode.faceToFace &&
                             !controller.hasBot,
+                        hasBot: controller.hasBot,
                         onPlayAgain: _playAgain,
                         onMenu: _quitGame,
                       ),

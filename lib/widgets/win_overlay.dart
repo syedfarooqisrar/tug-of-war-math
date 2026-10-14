@@ -1,3 +1,5 @@
+// 📁 FILE: lib/widgets/win_overlay.dart
+// 📌 WHAT: Result card with "Bot Wins!" and a "Bot" score pill for single-player
 import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../theme/app_theme.dart';
@@ -11,6 +13,9 @@ class WinOverlay extends StatelessWidget {
 
   /// True on tall screens, where two players sit opposite each other.
   final bool faceToFace;
+
+  /// True when Team 2 is the computer (single-player).
+  final bool hasBot;
   final VoidCallback onPlayAgain;
   final VoidCallback onMenu;
 
@@ -22,10 +27,18 @@ class WinOverlay extends StatelessWidget {
     required this.faceToFace,
     required this.onPlayAgain,
     required this.onMenu,
+    this.hasBot = false,
   });
 
   /// Dark brown text on the gold button (much easier to read than gold on gold).
   static const Color _onGold = Color(0xFF4A3200);
+
+  // Single-player texts.
+  static const String _botLabel = 'Bot';
+  static const String _botWinsTitle = 'Bot Wins!';
+  static const String _botWinsSubtitle = 'So close! Try again.';
+
+  bool get _botWon => hasBot && winner == 2;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +77,18 @@ class WinOverlay extends StatelessWidget {
     );
   }
 
+  String _title(bool isTie) {
+    if (isTie) return AppStrings.tieTitle;
+    if (_botWon) return _botWinsTitle;
+    return AppStrings.teamWins(winner);
+  }
+
+  String _subtitle(bool isTie) {
+    if (isTie) return AppStrings.tieSubtitle;
+    if (_botWon) return _botWinsSubtitle;
+    return AppStrings.winSubtitle;
+  }
+
   Widget _card({required bool withButtons}) {
     final isTie = winner == 0;
     final winnerColor = winner == 1 ? AppColors.team1 : AppColors.team2;
@@ -90,7 +115,7 @@ class WinOverlay extends StatelessWidget {
             _trophy(isTie),
             const SizedBox(height: 6),
             Text(
-              isTie ? AppStrings.tieTitle : AppStrings.teamWins(winner),
+              _title(isTie),
               textAlign: TextAlign.center,
               style: AppText.heading(
                 size: 28,
@@ -99,7 +124,7 @@ class WinOverlay extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              isTie ? AppStrings.tieSubtitle : AppStrings.winSubtitle,
+              _subtitle(isTie),
               textAlign: TextAlign.center,
               style: AppText.body(
                 size: 13,
@@ -113,7 +138,11 @@ class WinOverlay extends StatelessWidget {
               children: [
                 _scorePill(AppStrings.team1, score1, AppColors.team1),
                 const SizedBox(width: 12),
-                _scorePill(AppStrings.team2, score2, AppColors.team2),
+                _scorePill(
+                  hasBot ? _botLabel : AppStrings.team2,
+                  score2,
+                  AppColors.team2,
+                ),
               ],
             ),
             if (withButtons) ...[
@@ -164,9 +193,21 @@ class WinOverlay extends StatelessWidget {
     );
   }
 
-  /// A gold trophy icon with a soft glow that pops in. A handshake for a tie.
+  /// A gold trophy icon with a soft glow that pops in. A handshake for a
+  /// tie, a robot when the bot wins.
   Widget _trophy(bool isTie) {
-    final baseColor = isTie ? Colors.blueGrey.shade600 : AppColors.gold;
+    final Color baseColor;
+    final IconData icon;
+    if (isTie) {
+      baseColor = Colors.blueGrey.shade600;
+      icon = Icons.handshake_rounded;
+    } else if (_botWon) {
+      baseColor = AppColors.team2;
+      icon = Icons.smart_toy_rounded;
+    } else {
+      baseColor = AppColors.gold;
+      icon = Icons.emoji_events_rounded;
+    }
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.3, end: 1.0),
@@ -183,11 +224,7 @@ class WinOverlay extends StatelessWidget {
             colors: [baseColor.withValues(alpha: 0.35), Colors.transparent],
           ),
         ),
-        child: Icon(
-          isTie ? Icons.handshake_rounded : Icons.emoji_events_rounded,
-          size: 62,
-          color: baseColor,
-        ),
+        child: Icon(icon, size: 62, color: baseColor),
       ),
     );
   }
