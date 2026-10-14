@@ -1,8 +1,9 @@
 // 📁 FILE: lib/widgets/win_overlay.dart
-// 📌 WHAT: Result card with "Bot Wins!" and a "Bot" score pill for single-player
+// 📌 WHAT: Result card with confetti when a human wins (no confetti for a tie or a Bot win)
 import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../theme/app_theme.dart';
+import 'confetti_burst.dart';
 
 /// Result screen shown on top of the game when the round ends.
 /// [winner]: 0 = tie, 1 = team 1, 2 = team 2.
@@ -38,14 +39,47 @@ class WinOverlay extends StatelessWidget {
   static const String _botWinsTitle = 'Bot Wins!';
   static const String _botWinsSubtitle = 'So close! Try again.';
 
+  // Extra confetti colors (the winner's color and gold are added too).
+  static const Color _confettiGreen = Color(0xFF2ECC71);
+  static const Color _confettiOrange = Color(0xFFFF6D00);
+  static const Color _confettiPink = Color(0xFFEC407A);
+
   bool get _botWon => hasBot && winner == 2;
+
+  /// Confetti is for a human win only: not for a tie, not when the bot wins.
+  bool get _showConfetti => winner != 0 && !_botWon;
 
   @override
   Widget build(BuildContext context) {
+    final winnerColor = winner == 1 ? AppColors.team1 : AppColors.team2;
+
     return Container(
       color: Colors.black.withValues(alpha: 0.60),
-      alignment: Alignment.center,
-      child: faceToFace ? _faceToFaceLayout() : _card(withButtons: true),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.center,
+              child: faceToFace ? _faceToFaceLayout() : _card(withButtons: true),
+            ),
+          ),
+          if (_showConfetti)
+            Positioned.fill(
+              child: ConfettiBurst(
+                colors: [
+                  winnerColor,
+                  winnerColor,
+                  AppColors.gold,
+                  AppColors.gold,
+                  _confettiGreen,
+                  _confettiOrange,
+                  _confettiPink,
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 
