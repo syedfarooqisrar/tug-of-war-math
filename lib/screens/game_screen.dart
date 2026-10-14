@@ -1,3 +1,5 @@
+// 📁 FILE: lib/screens/game_screen.dart
+// 📌 WHAT: Game screen with bot panel, single-player portrait layout and the double-sound fix
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import '../core/constants/app_constants.dart';
@@ -7,6 +9,7 @@ import '../game/game_controller.dart';
 import '../game/tug_of_war_game.dart';
 import '../models/game_settings.dart';
 import '../theme/app_theme.dart';
+import '../widgets/bot_panel.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/pause_overlay.dart';
 import '../widgets/quit_confirm_overlay.dart';
@@ -25,6 +28,9 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
+  /// Name of the computer player (shown instead of "Team 2").
+  static const String _botLabel = 'Bot';
+
   late final GameController controller;
   late final TugOfWarGame game;
 
@@ -83,8 +89,8 @@ class _GameScreenState extends State<GameScreen> {
       sound.play(_lastCountdown > 0 ? Sfx.tick : Sfx.go);
     }
 
-    // 2. Answers: right or wrong sound. If this answer ended the round,
-    //    skip it and let the win sound play alone.
+    // 2. Answers: one sound per answer (wrong, correct, or bonus). If this
+    //    answer ended the round, skip it and let the win sound play alone.
     final justFinished = controller.isFinished && !_finishHandled;
     for (final team in const [1, 2]) {
       final id = controller.feedbackIdFor(team);
@@ -98,7 +104,6 @@ class _GameScreenState extends State<GameScreen> {
         if (!justFinished) {
           final correct =
               controller.lastResultFor(team) == AnswerResult.correct;
-          sound.play(correct ? Sfx.correct : Sfx.wrong);
           final bonus = controller.lastPointsFor(team) > 1;
           sound.play(correct ? (bonus ? Sfx.bonus : Sfx.correct) : Sfx.wrong);
         }
@@ -114,7 +119,7 @@ class _GameScreenState extends State<GameScreen> {
 
   /// Leaves the game and goes back to the start screen.
   void _quitGame() => Navigator.of(context).pop();
-  
+
   /// Asks "really quit?". The round is paused while the question is open.
   void _requestQuit() {
     if (controller.isFinished || _confirmingQuit) return;
@@ -177,6 +182,23 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Widget _teamPanel(int team) {
+    // Team 2 is the computer in single-player: no keypad, just a display.
+    if (team == 2 && controller.hasBot) {
+      return BotPanel(
+        label: _botLabel,
+        color: AppColors.team2,
+        lightColor: AppColors.team2Light,
+        score: controller.scoreFor(2),
+        questionText: controller.questionFor(2).text,
+        currentInput: controller.inputFor(2),
+        showQuestion: !controller.isSpeedRace,
+        streak: controller.streakFor(2),
+        lastResult: controller.lastResultFor(2),
+        feedbackId: controller.feedbackIdFor(2),
+        lastPoints: controller.lastPointsFor(2),
+      );
+    }
+
     final isTeam1 = team == 1;
     return TeamPanel(
       teamLabel: isTeam1 ? AppStrings.team1 : AppStrings.team2,
@@ -244,6 +266,7 @@ class _GameScreenState extends State<GameScreen> {
       },
     );
   }
+
   /// Quit button (asks first, so a stray tap cannot end the game).
   Widget _quitButton() {
     return Tooltip(
@@ -265,6 +288,9 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Widget _scoreboard() {
+    final team2Label =
+        controller.hasBot ? _botLabel : AppStrings.team2;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
@@ -308,12 +334,12 @@ class _GameScreenState extends State<GameScreen> {
               _pauseButton(),
               const SizedBox(width: 8),
               _muteButton(),
-               const SizedBox(width: 8),
+              const SizedBox(width: 8),
               _quitButton(),
             ],
           ),
           _scoreboardChip(
-            AppStrings.team2.toUpperCase(),
+            team2Label.toUpperCase(),
             controller.scoreFor(2),
             AppColors.team2,
           ),
@@ -398,7 +424,8 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  /// Pause and mute stacked vertically in a small pill (corner of tall screens).
+  /// Pause, mute and quit stacked vertically in a small pill (corner of
+  /// tall screens).
   Widget _cornerButtons() {
     return Container(
       padding: const EdgeInsets.all(5),
@@ -451,7 +478,7 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  // ---------- The two layouts ----------
+  // ---------- The layouts ----------
 
   /// Wide screens (landscape): panel | arena | panel.
   Widget _sideBySideBoard(Size size) {
@@ -569,13 +596,67 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  /// Tall screens, one human against the bot: nobody sits opposite, so
+  /// nothing is turned upside down. The bot is a slim panel on top, the
+  /// arena is in the middle and the player's calculator is at the bottom.
+  Widget _botPortraitBoard() {
+    final race = controller.isSpeedRace;
+    const gap = 8.0;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          child: Column(
+            children: [
+              Expanded(
+                flex: 4,
+                child: _limitedWidth(
+                  LayoutConstants.portraitPanelMaxWidth,
+                  _teamPanel(2),
+                ),
+              ),
+              const SizedBox(height: gap),
+              if (race) ...[
+                _portraitBanner(),
+                const SizedBox(height: gap),
+              ],
+              Expanded(
+                flex: 6,
+                child: _limitedWidth(
+                  LayoutConstants.portraitArenaMaxWidth,
+                  _faceToFaceArena(),
+                ),
+              ),
+              const SizedBox(height: gap),
+              Expanded(
+                flex: 10,
+                child: _limitedWidth(
+                  LayoutConstants.portraitPanelMaxWidth,
+                  _teamPanel(1),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(left: 8, bottom: 12, child: _cornerButtons()),
+      ],
+    );
+  }
+
   Widget _board() {
     return FieldBackground(
       child: SafeArea(
         child: ScaledView(
-          builder: (context, size, mode) => mode == BoardMode.faceToFace
-              ? _faceToFaceBoard()
-              : _sideBySideBoard(size),
+          builder: (context, size, mode) {
+            if (mode == BoardMode.faceToFace) {
+              return controller.hasBot
+                  ? _botPortraitBoard()
+                  : _faceToFaceBoard();
+            }
+            return _sideBySideBoard(size);
+          },
         ),
       ),
     );
@@ -629,7 +710,10 @@ class _GameScreenState extends State<GameScreen> {
                         winner: controller.winner,
                         score1: controller.scoreFor(1),
                         score2: controller.scoreFor(2),
-                        faceToFace: mode == BoardMode.faceToFace,
+                        // With a bot there is no player on the other side,
+                        // so no upside-down copy of the result.
+                        faceToFace: mode == BoardMode.faceToFace &&
+                            !controller.hasBot,
                         onPlayAgain: _playAgain,
                         onMenu: _quitGame,
                       ),

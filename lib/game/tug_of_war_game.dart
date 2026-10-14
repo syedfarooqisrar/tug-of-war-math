@@ -1,3 +1,5 @@
+// 📁 FILE: lib/game/tug_of_war_game.dart
+// 📌 WHAT: Same arena game; onGameResize parameter renamed to match Flame (fixes the lint)
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'rope_component.dart';
@@ -19,10 +21,10 @@ class TugOfWarGame extends FlameGame {
   }
 
   @override
-  void onGameResize(Vector2 canvasSize) {
-    super.onGameResize(canvasSize);
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
     if (isLoaded) {
-      rope.size = canvasSize;
+      rope.size = size;
     }
   }
 
