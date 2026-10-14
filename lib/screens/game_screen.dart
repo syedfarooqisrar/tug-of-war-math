@@ -681,8 +681,13 @@ class _GameScreenState extends State<GameScreen> {
                 if (controller.isCountingDown)
                   Positioned.fill(
                     child: ScaledView(
-                      builder: (context, size, mode) =>
-                          CountdownOverlay(value: controller.countdownValue),
+                      builder: (context, size, mode) => CountdownOverlay(
+                        value: controller.countdownValue,
+                        // In 2-player portrait one player would read the
+                        // words upside down, so show only the lights there.
+                        showLabel: mode != BoardMode.faceToFace ||
+                            controller.hasBot,
+                      ),
                     ),
                   ),
                 if (controller.isPaused && !_confirmingQuit)
