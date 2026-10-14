@@ -1,5 +1,5 @@
 // 📁 FILE: lib/screens/start_screen.dart
-// 📌 WHAT: Start screen with "2 Players / vs Bot" choice and Bot level
+// 📌 WHAT: Clean start screen: flat card, 48dp option chips, one gold Start button
 import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../core/layout/adaptive_layout.dart';
@@ -23,12 +23,15 @@ class _StartScreenState extends State<StartScreen> {
   int roundSeconds = GameConfig.defaultRoundSeconds;
   int winPulls = GameConfig.defaultWinPulls;
 
-  /// Dark brown text on the gold button (easy to read).
-  static const Color _onGold = Color(0xFF4A3200);
-
   // Labels for the single-player options.
   static const String _playersLabel = 'Players';
   static const String _botLevelLabel = 'Bot level';
+
+  /// Height of an option chip (at least 48 for easy tapping).
+  static const double _chipHeight = 48;
+
+  /// Space between two option groups.
+  static const double _groupGap = AppSpacing.lg;
 
   /// One selectable button inside a row of options.
   Widget _chip({
@@ -36,40 +39,43 @@ class _StartScreenState extends State<StartScreen> {
     required bool selected,
     required VoidCallback onTap,
     double fontSize = 14,
+    String? semanticLabel,
   }) {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3),
-        child: GestureDetector(
+        child: Semantics(
+          button: true,
+          selected: selected,
+          label: semanticLabel ?? label,
+          excludeSemantics: true,
           onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            height: 42,
-            decoration: BoxDecoration(
-              color: selected ? AppColors.team1 : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: selected ? AppColors.team1Dark : Colors.grey.shade300,
-                width: 2,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              height: _chipHeight,
+              decoration: BoxDecoration(
+                color: selected ? AppColors.team1 : AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                border: Border.all(
+                  color: selected ? AppColors.team1 : AppColors.border,
+                  width: 1.5,
+                ),
               ),
-              boxShadow: selected
-                  ? [
-                      BoxShadow(
-                        color: AppColors.team1.withValues(alpha: 0.4),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : [],
-            ),
-            alignment: Alignment.center,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                label,
-                style: AppText.number(
-                  size: fontSize,
-                  color: selected ? Colors.white : AppColors.ink,
+              alignment: Alignment.center,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    label,
+                    style: AppText.number(
+                      size: fontSize,
+                      color: selected ? Colors.white : AppColors.ink,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -86,6 +92,7 @@ class _StartScreenState extends State<StartScreen> {
     required String Function(T) label,
     required ValueChanged<T> onPick,
     double Function(T)? fontSize,
+    String Function(T)? semanticLabel,
   }) {
     return Row(
       children: [
@@ -94,6 +101,7 @@ class _StartScreenState extends State<StartScreen> {
             label: label(option),
             selected: option == selected,
             fontSize: fontSize?.call(option) ?? 14,
+            semanticLabel: semanticLabel?.call(option),
             onTap: () => onPick(option),
           ),
       ],
@@ -101,24 +109,30 @@ class _StartScreenState extends State<StartScreen> {
   }
 
   Widget _fieldLabel(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(text, style: AppText.body(size: 14)),
-        ),
-      );
-
-  /// Small explanation line under a row.
-  Widget _hint(String text) => Padding(
-        padding: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
         child: Align(
           alignment: Alignment.centerLeft,
           child: Text(
             text,
             style: AppText.body(
-              size: 12,
+              size: AppText.sizeSmall,
+              color: AppColors.inkMuted,
+            ),
+          ),
+        ),
+      );
+
+  /// Small explanation line under a row.
+  Widget _hint(String text) => Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.sm),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            text,
+            style: AppText.body(
+              size: AppText.sizeCaption,
               weight: FontWeight.w600,
-              color: Colors.grey.shade600,
+              color: AppColors.inkMuted,
             ),
           ),
         ),
@@ -160,7 +174,7 @@ class _StartScreenState extends State<StartScreen> {
         ),
         _hint(playerMode.description),
         if (playerMode == PlayerMode.vsBot) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: _groupGap),
           _fieldLabel(_botLevelLabel),
           _chipRow<BotLevel>(
             options: BotLevel.values,
@@ -170,16 +184,17 @@ class _StartScreenState extends State<StartScreen> {
           ),
           _hint(botLevel.description),
         ],
-        const SizedBox(height: 14),
+        const SizedBox(height: _groupGap),
         _fieldLabel(AppStrings.operation),
         _chipRow<MathOperation>(
           options: MathOperation.values,
           selected: operation,
           label: (o) => o.symbol,
+          semanticLabel: (o) => o.label,
           fontSize: (o) => o == MathOperation.mixed ? 14 : 22,
           onPick: (o) => setState(() => operation = o),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: _groupGap),
         _fieldLabel(AppStrings.gameMode),
         _chipRow<GameMode>(
           options: GameMode.values,
@@ -188,7 +203,7 @@ class _StartScreenState extends State<StartScreen> {
           onPick: (m) => setState(() => mode = m),
         ),
         _hint(mode.description),
-        const SizedBox(height: 14),
+        const SizedBox(height: _groupGap),
         _fieldLabel(AppStrings.difficulty),
         _chipRow<Difficulty>(
           options: Difficulty.values,
@@ -197,20 +212,22 @@ class _StartScreenState extends State<StartScreen> {
           onPick: (d) => setState(() => difficulty = d),
         ),
         _hint(difficulty.description),
-        const SizedBox(height: 14),
+        const SizedBox(height: _groupGap),
         _fieldLabel(AppStrings.roundLength),
         _chipRow<int>(
           options: GameConfig.roundSecondOptions,
           selected: roundSeconds,
           label: (v) => '${v}s',
+          semanticLabel: (v) => '$v seconds',
           onPick: (v) => setState(() => roundSeconds = v),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: _groupGap),
         _fieldLabel(AppStrings.pullsToWin),
         _chipRow<int>(
           options: GameConfig.winPullOptions,
           selected: winPulls,
           label: (v) => '$v',
+          semanticLabel: (v) => '$v pulls',
           onPick: (v) => setState(() => winPulls = v),
         ),
       ],
@@ -223,10 +240,11 @@ class _StartScreenState extends State<StartScreen> {
       child: ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.gold,
-          foregroundColor: _onGold,
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          foregroundColor: AppColors.onGold,
+          minimumSize: const Size.fromHeight(52),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           elevation: 0,
         ),
@@ -234,29 +252,27 @@ class _StartScreenState extends State<StartScreen> {
         icon: const Icon(Icons.play_arrow_rounded, size: 28),
         label: Text(
           AppStrings.startGame,
-          style: AppText.heading(size: 18, color: _onGold),
+          style: AppText.heading(
+            size: AppText.sizeTitle,
+            color: AppColors.onGold,
+          ),
         ),
       ),
     );
   }
 
-  /// Gold trophy icon with a soft glow.
+  /// Flat gold trophy on a soft round background.
   Widget _trophyBadge(double size) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            AppColors.gold.withValues(alpha: 0.35),
-            Colors.transparent,
-          ],
-        ),
+        color: AppColors.gold.withValues(alpha: 0.16),
       ),
       child: Icon(
         Icons.emoji_events_rounded,
-        size: size * 0.65,
+        size: size * 0.6,
         color: AppColors.gold,
       ),
     );
@@ -267,20 +283,20 @@ class _StartScreenState extends State<StartScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         _trophyBadge(trophySize),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.md),
         Text(
           AppStrings.appTitle,
           textAlign: TextAlign.center,
-          style: AppText.heading(size: titleSize, color: AppColors.team1Dark),
+          style: AppText.heading(size: titleSize),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           AppStrings.tagline,
           textAlign: TextAlign.center,
           style: AppText.body(
-            size: 12,
+            size: AppText.sizeSmall,
             weight: FontWeight.w600,
-            color: Colors.grey.shade600,
+            color: AppColors.inkMuted,
           ),
         ),
       ],
@@ -290,11 +306,9 @@ class _StartScreenState extends State<StartScreen> {
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: AppColors.paper,
-      borderRadius: BorderRadius.circular(26),
-      border: Border.all(color: Colors.white, width: 4),
-      boxShadow: const [
-        BoxShadow(color: Colors.black26, blurRadius: 18, offset: Offset(0, 8)),
-      ],
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      border: Border.all(color: AppColors.border, width: 1.5),
+      boxShadow: AppShadows.card,
     );
   }
 
@@ -308,10 +322,10 @@ class _StartScreenState extends State<StartScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _titleBlock(trophySize: 64, titleSize: 22),
-          const SizedBox(height: 16),
+          _titleBlock(trophySize: 56, titleSize: AppText.sizeDisplay),
+          const SizedBox(height: AppSpacing.xl),
           _options(),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.xl),
           _startButton(),
         ],
       ),
@@ -331,7 +345,7 @@ class _StartScreenState extends State<StartScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _titleBlock(trophySize: 96, titleSize: 28),
+                _titleBlock(trophySize: 88, titleSize: 36),
                 const SizedBox(height: 28),
                 _startButton(),
               ],

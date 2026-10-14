@@ -1,3 +1,5 @@
+// 📁 FILE: lib/widgets/quit_confirm_overlay.dart
+// 📌 WHAT: Clean "Quit this game?" card
 import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../theme/app_theme.dart';
@@ -13,40 +15,28 @@ class QuitConfirmOverlay extends StatelessWidget {
     required this.onQuit,
   });
 
-  /// Dark brown text on the gold button (easy to read).
-  static const Color _onGold = Color(0xFF4A3200);
-
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
     return Container(
-      color: Colors.black.withValues(alpha: 0.60),
+      color: Colors.black.withValues(alpha: 0.45),
       alignment: Alignment.center,
       child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.85, end: 1.0),
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutBack,
-        builder: (context, scale, child) {
-          final opacity = ((scale - 0.85) / 0.15).clamp(0.0, 1.0);
-          return Opacity(
-            opacity: opacity,
-            child: Transform.scale(scale: scale, child: child),
-          );
-        },
+        tween: Tween(begin: reduceMotion ? 1.0 : 0.92, end: 1.0),
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        builder: (context, scale, child) =>
+            Transform.scale(scale: scale, child: child),
         child: Container(
           width: 290,
           margin: const EdgeInsets.all(20),
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
           decoration: BoxDecoration(
             color: AppColors.paper,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white, width: 4),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black38,
-                blurRadius: 24,
-                offset: Offset(0, 10),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.border, width: 1.5),
+            boxShadow: AppShadows.card,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -54,60 +44,63 @@ class QuitConfirmOverlay extends StatelessWidget {
               const Icon(
                 Icons.exit_to_app_rounded,
                 size: 44,
-                color: AppColors.team2,
+                color: AppColors.danger,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 AppStrings.quitTitle,
                 textAlign: TextAlign.center,
                 style: AppText.heading(size: 22),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 AppStrings.quitMessage,
                 textAlign: TextAlign.center,
                 style: AppText.body(
                   size: 13,
                   weight: FontWeight.w600,
-                  color: Colors.grey.shade600,
+                  color: AppColors.inkMuted,
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: AppSpacing.xl),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.gold,
-                    foregroundColor: _onGold,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    foregroundColor: AppColors.onGold,
+                    minimumSize: const Size.fromHeight(52),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     elevation: 0,
                   ),
                   onPressed: onStay,
                   child: Text(
                     AppStrings.keepPlaying,
-                    style: AppText.heading(size: 18, color: _onGold),
+                    style: AppText.heading(
+                      size: AppText.sizeTitle,
+                      color: AppColors.onGold,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.team2,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: BorderSide(color: Colors.red.shade200, width: 2),
+                    foregroundColor: AppColors.danger,
+                    minimumSize: const Size.fromHeight(48),
+                    side: const BorderSide(color: AppColors.danger, width: 1.5),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                   ),
                   onPressed: onQuit,
                   child: Text(
                     AppStrings.quit,
-                    style: AppText.body(size: 15, color: AppColors.team2),
+                    style: AppText.body(size: 15, color: AppColors.danger),
                   ),
                 ),
               ),

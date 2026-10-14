@@ -1,5 +1,5 @@
 // 📁 FILE: lib/widgets/win_overlay.dart
-// 📌 WHAT: Result card with confetti when a human wins (no confetti for a tie or a Bot win)
+// 📌 WHAT: Clean result card (flat trophy, flat score pills) with confetti for human wins
 import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../theme/app_theme.dart';
@@ -31,18 +31,10 @@ class WinOverlay extends StatelessWidget {
     this.hasBot = false,
   });
 
-  /// Dark brown text on the gold button (much easier to read than gold on gold).
-  static const Color _onGold = Color(0xFF4A3200);
-
   // Single-player texts.
   static const String _botLabel = 'Bot';
   static const String _botWinsTitle = 'Bot Wins!';
   static const String _botWinsSubtitle = 'So close! Try again.';
-
-  // Extra confetti colors (the winner's color and gold are added too).
-  static const Color _confettiGreen = Color(0xFF2ECC71);
-  static const Color _confettiOrange = Color(0xFFFF6D00);
-  static const Color _confettiPink = Color(0xFFEC407A);
 
   bool get _botWon => hasBot && winner == 2;
 
@@ -54,7 +46,7 @@ class WinOverlay extends StatelessWidget {
     final winnerColor = winner == 1 ? AppColors.team1 : AppColors.team2;
 
     return Container(
-      color: Colors.black.withValues(alpha: 0.60),
+      color: Colors.black.withValues(alpha: 0.50),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -72,9 +64,9 @@ class WinOverlay extends StatelessWidget {
                   winnerColor,
                   AppColors.gold,
                   AppColors.gold,
-                  _confettiGreen,
-                  _confettiOrange,
-                  _confettiPink,
+                  AppColors.success,
+                  AppColors.fire,
+                  const Color(0xFFEC407A),
                 ],
               ),
             ),
@@ -133,45 +125,39 @@ class WinOverlay extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
         decoration: BoxDecoration(
           color: AppColors.paper,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white, width: 4),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black38,
-              blurRadius: 24,
-              offset: Offset(0, 10),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.border, width: 1.5),
+          boxShadow: AppShadows.card,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             _trophy(isTie),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.md),
             Text(
               _title(isTie),
               textAlign: TextAlign.center,
               style: AppText.heading(
-                size: 28,
+                size: AppText.sizeDisplay,
                 color: isTie ? AppColors.ink : winnerColor,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               _subtitle(isTie),
               textAlign: TextAlign.center,
               style: AppText.body(
                 size: 13,
                 weight: FontWeight.w600,
-                color: Colors.grey.shade600,
+                color: AppColors.inkMuted,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _scorePill(AppStrings.team1, score1, AppColors.team1),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 _scorePill(
                   hasBot ? _botLabel : AppStrings.team2,
                   score2,
@@ -180,16 +166,16 @@ class WinOverlay extends StatelessWidget {
               ],
             ),
             if (withButtons) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpacing.xl),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.gold,
-                    foregroundColor: _onGold,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    foregroundColor: AppColors.onGold,
+                    minimumSize: const Size.fromHeight(52),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     elevation: 0,
                   ),
@@ -197,20 +183,23 @@ class WinOverlay extends StatelessWidget {
                   icon: const Icon(Icons.replay_rounded),
                   label: Text(
                     AppStrings.playAgain,
-                    style: AppText.heading(size: 18, color: _onGold),
+                    style: AppText.heading(
+                      size: AppText.sizeTitle,
+                      color: AppColors.onGold,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.ink,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: BorderSide(color: Colors.grey.shade400, width: 2),
+                    minimumSize: const Size.fromHeight(48),
+                    side: const BorderSide(color: AppColors.border, width: 1.5),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                   ),
                   onPressed: onMenu,
@@ -227,13 +216,13 @@ class WinOverlay extends StatelessWidget {
     );
   }
 
-  /// A gold trophy icon with a soft glow that pops in. A handshake for a
-  /// tie, a robot when the bot wins.
+  /// A flat icon on a soft round background: gold trophy, a handshake for
+  /// a tie, a robot when the bot wins. It grows in once.
   Widget _trophy(bool isTie) {
     final Color baseColor;
     final IconData icon;
     if (isTie) {
-      baseColor = Colors.blueGrey.shade600;
+      baseColor = AppColors.inkMuted;
       icon = Icons.handshake_rounded;
     } else if (_botWon) {
       baseColor = AppColors.team2;
@@ -244,21 +233,19 @@ class WinOverlay extends StatelessWidget {
     }
 
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.3, end: 1.0),
-      duration: const Duration(milliseconds: 600),
+      tween: Tween(begin: 0.6, end: 1.0),
+      duration: const Duration(milliseconds: 450),
       curve: Curves.easeOutBack,
       builder: (context, scale, child) =>
           Transform.scale(scale: scale, child: child),
       child: Container(
-        width: 96,
-        height: 96,
+        width: 88,
+        height: 88,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [baseColor.withValues(alpha: 0.35), Colors.transparent],
-          ),
+          color: baseColor.withValues(alpha: 0.16),
         ),
-        child: Icon(icon, size: 62, color: baseColor),
+        child: Icon(icon, size: 54, color: baseColor),
       ),
     );
   }
@@ -268,12 +255,12 @@ class WinOverlay extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Text(
         '$label: $score',
         style: AppText.body(
-          size: 14,
+          size: AppText.sizeSmall,
           weight: FontWeight.w800,
           color: Colors.white,
         ),
