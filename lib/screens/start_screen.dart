@@ -1,3 +1,5 @@
+// 📁 FILE: lib/screens/start_screen.dart
+// 📌 WHAT: Start screen with "2 Players / vs Bot" choice and Bot level
 import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../core/layout/adaptive_layout.dart';
@@ -13,6 +15,8 @@ class StartScreen extends StatefulWidget {
 }
 
 class _StartScreenState extends State<StartScreen> {
+  PlayerMode playerMode = PlayerMode.twoPlayers;
+  BotLevel botLevel = BotLevel.medium;
   MathOperation operation = MathOperation.multiplication;
   GameMode mode = GameMode.classic;
   Difficulty difficulty = Difficulty.medium;
@@ -21,6 +25,10 @@ class _StartScreenState extends State<StartScreen> {
 
   /// Dark brown text on the gold button (easy to read).
   static const Color _onGold = Color(0xFF4A3200);
+
+  // Labels for the single-player options.
+  static const String _playersLabel = 'Players';
+  static const String _botLevelLabel = 'Bot level';
 
   /// One selectable button inside a row of options.
   Widget _chip({
@@ -127,6 +135,8 @@ class _StartScreenState extends State<StartScreen> {
             difficulty: difficulty,
             roundSeconds: roundSeconds,
             winPulls: winPulls,
+            playerMode: playerMode,
+            botLevel: botLevel,
           ),
         ),
       ),
@@ -135,11 +145,32 @@ class _StartScreenState extends State<StartScreen> {
 
   // ---------- Building blocks shared by both layouts ----------
 
-  /// The five option rows.
+  /// The option rows. The bot level row only appears when playing
+  /// against the bot.
   Widget _options() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        _fieldLabel(_playersLabel),
+        _chipRow<PlayerMode>(
+          options: PlayerMode.values,
+          selected: playerMode,
+          label: (p) => p.label,
+          onPick: (p) => setState(() => playerMode = p),
+        ),
+        _hint(playerMode.description),
+        if (playerMode == PlayerMode.vsBot) ...[
+          const SizedBox(height: 14),
+          _fieldLabel(_botLevelLabel),
+          _chipRow<BotLevel>(
+            options: BotLevel.values,
+            selected: botLevel,
+            label: (b) => b.label,
+            onPick: (b) => setState(() => botLevel = b),
+          ),
+          _hint(botLevel.description),
+        ],
+        const SizedBox(height: 14),
         _fieldLabel(AppStrings.operation),
         _chipRow<MathOperation>(
           options: MathOperation.values,
