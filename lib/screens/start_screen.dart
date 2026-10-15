@@ -1,10 +1,11 @@
 // 📁 FILE: lib/screens/start_screen.dart
-// 📌 WHAT: Clean start screen: flat card, 48dp option chips, one gold Start button
+// 📌 WHAT: Playful start screen: tactile chips, big gold Start button, two-color MathPull title, sticker card
 import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../core/layout/adaptive_layout.dart';
 import '../models/game_settings.dart';
 import '../theme/app_theme.dart';
+import '../widgets/chunky_button.dart';
 import 'game_screen.dart';
 
 class StartScreen extends StatefulWidget {
@@ -27,11 +28,18 @@ class _StartScreenState extends State<StartScreen> {
   static const String _playersLabel = 'Players';
   static const String _botLevelLabel = 'Bot level';
 
-  /// Height of an option chip (at least 48 for easy tapping).
-  static const double _chipHeight = 48;
+  /// Height of an option chip including its edge (the face is 4 less,
+  /// still at least 48 for easy tapping).
+  static const double _chipHeight = 52;
+
+  /// Height of the Start button including its edge.
+  static const double _startHeight = 62;
 
   /// Space between two option groups.
   static const double _groupGap = AppSpacing.lg;
+
+  // Chip colors.
+  static const Color _chipEdge = Color(0xFFB7C7E2);
 
   /// One selectable button inside a row of options.
   Widget _chip({
@@ -44,38 +52,22 @@ class _StartScreenState extends State<StartScreen> {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3),
-        child: Semantics(
-          button: true,
-          selected: selected,
-          label: semanticLabel ?? label,
-          excludeSemantics: true,
-          onTap: onTap,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          height: _chipHeight,
+          child: ChunkyButton(
+            semanticLabel: semanticLabel ?? label,
+            selected: selected,
+            color: selected ? AppColors.team1 : AppColors.surface,
+            edgeColor: selected ? AppColors.team1Dark : _chipEdge,
+            borderColor: selected ? null : AppColors.border,
             onTap: onTap,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              height: _chipHeight,
-              decoration: BoxDecoration(
-                color: selected ? AppColors.team1 : AppColors.surface,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                border: Border.all(
-                  color: selected ? AppColors.team1 : AppColors.border,
-                  width: 1.5,
-                ),
-              ),
-              alignment: Alignment.center,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(
-                    label,
-                    style: AppText.number(
-                      size: fontSize,
-                      color: selected ? Colors.white : AppColors.ink,
-                    ),
-                  ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text(
+                label,
+                style: AppText.number(
+                  size: fontSize,
+                  color: selected ? Colors.white : AppColors.ink,
                 ),
               ),
             ),
@@ -237,44 +229,88 @@ class _StartScreenState extends State<StartScreen> {
   Widget _startButton() {
     return SizedBox(
       width: double.infinity,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.gold,
-          foregroundColor: AppColors.onGold,
-          minimumSize: const Size.fromHeight(52),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          elevation: 0,
-        ),
-        onPressed: _startGame,
-        icon: const Icon(Icons.play_arrow_rounded, size: 28),
-        label: Text(
-          AppStrings.startGame,
-          style: AppText.heading(
-            size: AppText.sizeTitle,
-            color: AppColors.onGold,
-          ),
+      height: _startHeight,
+      child: ChunkyButton(
+        semanticLabel: AppStrings.startGame,
+        color: AppColors.gold,
+        edgeColor: AppColors.goldDark,
+        radius: AppRadius.md,
+        depth: 5,
+        onTap: _startGame,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.play_arrow_rounded,
+              size: 30,
+              color: AppColors.onGold,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              AppStrings.startGame,
+              style: AppText.heading(
+                size: AppText.sizeTitle + 2,
+                color: AppColors.onGold,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  /// Flat gold trophy on a soft round background.
+  /// Gold trophy on a soft round background with a thin gold ring.
   Widget _trophyBadge(double size) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.gold.withValues(alpha: 0.16),
+        color: AppColors.gold.withValues(alpha: 0.18),
+        border: Border.all(
+          color: AppColors.gold.withValues(alpha: 0.55),
+          width: 2,
+        ),
       ),
       child: Icon(
         Icons.emoji_events_rounded,
-        size: size * 0.6,
+        size: size * 0.58,
         color: AppColors.gold,
       ),
+    );
+  }
+
+  /// The game name in two colors: the first word in the Team 1 blue, the
+  /// second in the Team 2 red. If the name does not have two capitalized
+  /// parts it is shown in one color.
+  Widget _title(double size) {
+    final title = AppStrings.appTitle;
+    final cut = title.length > 1 ? title.indexOf(RegExp(r'[A-Z]'), 1) : -1;
+
+    final style = AppText.heading(size: size);
+    if (cut <= 0) {
+      return Text(
+        title,
+        textAlign: TextAlign.center,
+        style: style.copyWith(color: AppColors.team1),
+      );
+    }
+
+    return Text.rich(
+      TextSpan(
+        style: style,
+        children: [
+          TextSpan(
+            text: title.substring(0, cut),
+            style: style.copyWith(color: AppColors.team1),
+          ),
+          TextSpan(
+            text: title.substring(cut),
+            style: style.copyWith(color: AppColors.team2),
+          ),
+        ],
+      ),
+      textAlign: TextAlign.center,
     );
   }
 
@@ -284,11 +320,7 @@ class _StartScreenState extends State<StartScreen> {
       children: [
         _trophyBadge(trophySize),
         const SizedBox(height: AppSpacing.md),
-        Text(
-          AppStrings.appTitle,
-          textAlign: TextAlign.center,
-          style: AppText.heading(size: titleSize),
-        ),
+        _title(titleSize),
         const SizedBox(height: AppSpacing.xs),
         Text(
           AppStrings.tagline,
@@ -303,12 +335,17 @@ class _StartScreenState extends State<StartScreen> {
     );
   }
 
+  /// A white "sticker" card: thin border, a solid edge under it and a soft
+  /// shadow.
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: AppColors.paper,
       borderRadius: BorderRadius.circular(AppRadius.lg),
-      border: Border.all(color: AppColors.border, width: 1.5),
-      boxShadow: AppShadows.card,
+      border: Border.all(color: AppColors.border, width: 2),
+      boxShadow: [
+        const BoxShadow(color: AppColors.border, offset: Offset(0, 5)),
+        ...AppShadows.card,
+      ],
     );
   }
 
@@ -322,7 +359,7 @@ class _StartScreenState extends State<StartScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _titleBlock(trophySize: 56, titleSize: AppText.sizeDisplay),
+          _titleBlock(trophySize: 60, titleSize: AppText.sizeDisplay + 4),
           const SizedBox(height: AppSpacing.xl),
           _options(),
           const SizedBox(height: AppSpacing.xl),
@@ -345,7 +382,7 @@ class _StartScreenState extends State<StartScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _titleBlock(trophySize: 88, titleSize: 36),
+                _titleBlock(trophySize: 92, titleSize: 40),
                 const SizedBox(height: 28),
                 _startButton(),
               ],
