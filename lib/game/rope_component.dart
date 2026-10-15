@@ -1,8 +1,11 @@
+// 📁 FILE: lib/game/rope_component.dart
+// 📌 WHAT: Clean minimalist arena: flat tinted surface, goal lines, rope and characters
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
+
+import '../theme/app_theme.dart';
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -24,10 +27,19 @@ double _ease(double t) {
 }
 
 class _Palette {
-  static const team1 = Color(0xFF2461E8);
-  static const team1Dark = Color(0xFF173E9C);
-  static const team2 = Color(0xFFE8432B);
-  static const team2Dark = Color(0xFFA72C19);
+  // Team colors come from the app theme so the arena always matches the UI.
+  static const team1 = AppColors.team1;
+  static const team1Dark = AppColors.team1Dark;
+  static const team2 = AppColors.team2;
+  static const team2Dark = AppColors.team2Dark;
+
+  /// The calm surface of the arena.
+  static const surface = Color(0xFFF4F7FC);
+  static const groundBand = Color(0x141B2433);
+  static const groundLine = Color(0x261B2433);
+  static const centerLine = Color(0x2E1B2433);
+  static const dust = Color(0xFF94A3B8);
+
   static const skins = [
     Color(0xFFF2C29A),
     Color(0xFFD9A074),
@@ -49,7 +61,6 @@ class _Layout {
   _Layout(Vector2 size, double pull) {
     w = size.x;
     h = size.y;
-    horizon = h * 0.38;
     groundY = h * 0.78;
     pullerCount = w >= 520 ? 3 : 2;
     height = math.min(h * 0.52, w * 0.32).clamp(36.0, 190.0).toDouble();
@@ -64,7 +75,7 @@ class _Layout {
     ropeY = groundY - 58 * k;
   }
 
-  late final double w, h, horizon, groundY, height, k, margin, knotX, ropeY;
+  late final double w, h, groundY, height, k, margin, knotX, ropeY;
   late final int pullerCount;
 }
 
@@ -176,10 +187,7 @@ class RopeComponent extends PositionComponent {
     if (size.x <= 0 || size.y <= 0) return;
     final lay = _Layout(size, _shownPull);
 
-    _paintSky(canvas, lay);
-    _paintHills(canvas, lay);
-    _paintGround(canvas, lay);
-    _paintCrowd(canvas, lay);
+    _paintBackground(canvas, lay);
     _paintFieldLines(canvas, lay);
 
     final pullers = [..._pullersFor(1, lay), ..._pullersFor(2, lay)];
@@ -192,7 +200,6 @@ class RopeComponent extends PositionComponent {
     for (final p in pullers) {
       _paintArms(canvas, p, lay);
     }
-    _paintVignette(canvas, lay);
   }
 
   // ---------- Puller data ----------
@@ -259,7 +266,7 @@ class RopeComponent extends PositionComponent {
             (0.5 + 1.8 * _tension) *
             lay.k;
 
-    // After the round the rope falls to the grass.
+    // After the round the rope falls to the ground.
     final fall = settle * (lay.groundY - lay.ropeY) * 0.75;
 
     return lay.ropeY + sag + vibration + fall;
@@ -307,214 +314,42 @@ class RopeComponent extends PositionComponent {
       c.drawCircle(
         Offset(d.x, d.y),
         d.radius,
-        _fill(const Color(0xFFE2D3AE).withValues(alpha: 0.55 * a)),
+        _fill(_Palette.dust.withValues(alpha: 0.55 * a)),
       );
     }
   }
 
   // ---------- Scenery ----------
 
-  void _paintSky(Canvas c, _Layout lay) {
+  /// One flat, calm surface. Each team's half has a very light tint of its
+  /// color, and the half of the team that is ahead gets a little stronger.
+  void _paintBackground(Canvas c, _Layout lay) {
+    final k = lay.k;
+    c.drawRect(Rect.fromLTWH(0, 0, lay.w, lay.h), _fill(_Palette.surface));
+
+    final tint1 = 0.05 + 0.10 * math.max(0.0, _shownPull);
+    final tint2 = 0.05 + 0.10 * math.max(0.0, -_shownPull);
     c.drawRect(
-      Rect.fromLTWH(0, 0, lay.w, lay.horizon + 2),
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset.zero,
-          Offset(0, lay.horizon),
-          const [Color(0xFF4AA8F0), Color(0xFFA5DCFF), Color(0xFFE6F6FF)],
-          const [0.0, 0.65, 1.0],
-        ),
-    );
-
-    // Sun with a soft glow
-    final sunC = Offset(lay.w * 0.80, lay.horizon * 0.42);
-    final sunR = math.min(lay.w, lay.h) * 0.055;
-    c.drawCircle(
-      sunC,
-      sunR * 3.4,
-      Paint()
-        ..shader = ui.Gradient.radial(
-          sunC,
-          sunR * 3.4,
-          const [Color(0xCCFFF3B0), Color(0x33FFE680), Color(0x00FFE680)],
-          const [0.0, 0.4, 1.0],
-        ),
-    );
-    c.drawCircle(sunC, sunR, _fill(const Color(0xFFFFF6C8)));
-
-    // Slow drifting clouds: x fraction, y fraction, size, speed
-    const clouds = [
-      [0.10, 0.10, 1.0, 5.0],
-      [0.52, 0.22, 0.75, 3.5],
-      [0.88, 0.07, 1.2, 4.2],
-    ];
-    final paint = _fill(const Color(0xE6FFFFFF));
-    for (final cl in clouds) {
-      final s = lay.h * 0.055 * cl[2];
-      final span = lay.w + s * 8;
-      final x = ((cl[0] * lay.w + _time * cl[3] * lay.k * 3) % span) - s * 4;
-      final y = lay.horizon * cl[1] * 2.0;
-      c.drawCircle(Offset(x, y), s, paint);
-      c.drawCircle(Offset(x - s * 0.95, y + s * 0.28), s * 0.7, paint);
-      c.drawCircle(Offset(x + s * 1.0, y + s * 0.25), s * 0.78, paint);
-      c.drawCircle(Offset(x + s * 0.2, y - s * 0.35), s * 0.72, paint);
-      c.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(x - s * 1.5, y + s * 0.2, x + s * 1.65, y + s * 0.95),
-          Radius.circular(s * 0.4),
-        ),
-        paint,
-      );
-    }
-  }
-
-  double _hillY(
-    double x,
-    _Layout lay, {
-    required double amp,
-    required double freq,
-    required double phase,
-    required double base,
-  }) {
-    return base -
-        amp * (math.sin(x / lay.w * math.pi * 2 * freq + phase) * 0.5 + 0.5);
-  }
-
-  void _paintHills(Canvas c, _Layout lay) {
-    void hill(Color color, double amp, double freq, double phase, double base) {
-      final path = Path()..moveTo(0, lay.horizon + 2);
-      for (double x = 0; x <= lay.w + 6; x += 6) {
-        path.lineTo(
-          x,
-          _hillY(x, lay, amp: amp, freq: freq, phase: phase, base: base),
-        );
-      }
-      path.lineTo(lay.w, lay.horizon + 2);
-      path.close();
-      c.drawPath(path, _fill(color));
-    }
-
-    // Far hills with small trees
-    final farAmp = lay.h * 0.075;
-    final farBase = lay.horizon - lay.h * 0.012;
-    hill(const Color(0xFF9AD6A8), farAmp, 1.2, 0.6, farBase);
-
-    final ts = lay.h * 0.035;
-    for (final fraction in const [0.08, 0.27, 0.52, 0.74, 0.93]) {
-      final x = lay.w * fraction;
-      final y =
-          _hillY(x, lay, amp: farAmp, freq: 1.2, phase: 0.6, base: farBase);
-      c.drawRect(
-        Rect.fromLTRB(x - ts * 0.12, y - ts * 0.6, x + ts * 0.12, y + ts * 0.1),
-        _fill(const Color(0xFF7A5B32)),
-      );
-      c.drawCircle(
-        Offset(x, y - ts * 1.0),
-        ts * 0.7,
-        _fill(const Color(0xFF3F9A55)),
-      );
-      c.drawCircle(
-        Offset(x - ts * 0.2, y - ts * 1.15),
-        ts * 0.4,
-        _fill(const Color(0xFF58B36C)),
-      );
-    }
-
-    // Near hills
-    hill(
-      const Color(0xFF6DBE6B),
-      lay.h * 0.05,
-      1.7,
-      2.0,
-      lay.horizon + lay.h * 0.004,
-    );
-  }
-
-  void _paintGround(Canvas c, _Layout lay) {
-    c.drawRect(
-      Rect.fromLTRB(0, lay.horizon, lay.w, lay.h),
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, lay.horizon),
-          Offset(0, lay.h),
-          const [Color(0xFF8CD65C), Color(0xFF63B03B), Color(0xFF3F8A2A)],
-          const [0.0, 0.5, 1.0],
-        ),
-    );
-
-    // Mowing stripes that get thicker toward the viewer (perspective)
-    const bands = 8;
-    for (var i = 0; i < bands; i += 2) {
-      final y0 = lay.horizon +
-          (lay.h - lay.horizon) * math.pow(i / bands, 1.5).toDouble();
-      final y1 = lay.horizon +
-          (lay.h - lay.horizon) * math.pow((i + 1) / bands, 1.5).toDouble();
-      c.drawRect(
-        Rect.fromLTRB(0, y0, lay.w, y1),
-        _fill(const Color(0x14000000)),
-      );
-    }
-  }
-
-  void _paintCrowd(Canvas c, _Layout lay) {
-    final s = (lay.h * 0.034).clamp(3.5, 9.0).toDouble();
-    final baseY = lay.horizon + lay.h * 0.05;
-    final spacing = s * 2.0;
-    final count = (lay.w / spacing).ceil() + 1;
-
-    // The crowd jumps more when the rope is close to a win, and goes wild
-    // when the round is decided.
-    final excite = _finished
-        ? (_winner == 0 ? 0.6 : 1.6)
-        : 0.35 + 0.65 * _shownPull.abs() + 0.5 * _tension;
-
-    const shirts = [
-      Color(0xFF2461E8),
-      Color(0xFFE8432B),
-      Color(0xFFF4B400),
-      Color(0xFFFFFFFF),
-      Color(0xFF3DDC84),
-    ];
-
-    for (var i = 0; i < count; i++) {
-      final x = i * spacing + s;
-      final jump =
-          math.max(0.0, math.sin(_time * 7 + i * 1.7)) * s * 0.55 * excite;
-      final skin = _Palette.skins[(i * 7 + i ~/ 2) % _Palette.skins.length];
-      final shirt = shirts[(i * 7) % shirts.length];
-      c.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(x, baseY - s * 0.9 - jump),
-            width: s * 1.5,
-            height: s * 1.9,
-          ),
-          Radius.circular(s * 0.5),
-        ),
-        _fill(shirt),
-      );
-      c.drawCircle(Offset(x, baseY - s * 2.15 - jump), s * 0.62, _fill(skin));
-    }
-
-    // Fence in front of the crowd
-    c.drawRect(
-      Rect.fromLTRB(0, baseY - s * 0.55, lay.w, baseY - s * 0.2),
-      _fill(const Color(0xFFF1F5F9)),
+      Rect.fromLTRB(0, 0, lay.w / 2, lay.h),
+      _fill(_Palette.team1.withValues(alpha: tint1)),
     );
     c.drawRect(
-      Rect.fromLTRB(0, baseY - s * 0.2, lay.w, baseY + s * 0.7),
-      _fill(const Color(0x26FFFFFF)),
+      Rect.fromLTRB(lay.w / 2, 0, lay.w, lay.h),
+      _fill(_Palette.team2.withValues(alpha: tint2)),
     );
-    for (double x = 0; x < lay.w; x += s * 6) {
-      c.drawRect(
-        Rect.fromLTRB(x, baseY - s * 0.55, x + s * 0.3, baseY + s * 0.9),
-        _fill(const Color(0xFFCBD5E1)),
-      );
-    }
+
+    // A soft ground band with a thin line where the feet stand.
+    c.drawRect(
+      Rect.fromLTRB(0, lay.groundY, lay.w, lay.h),
+      _fill(_Palette.groundBand),
+    );
+    c.drawRect(
+      Rect.fromLTRB(0, lay.groundY - 0.8 * k, lay.w, lay.groundY + 0.8 * k),
+      _fill(_Palette.groundLine),
+    );
   }
 
   void _paintFieldLines(Canvas c, _Layout lay) {
-    final top = lay.horizon + lay.h * 0.07;
     final k = lay.k;
 
     // The goal line the rope is heading for glows when a team is close.
@@ -524,40 +359,30 @@ class RopeComponent extends PositionComponent {
       final glow = towardTeam1 ? _Palette.team1 : _Palette.team2;
       final pulse = 0.5 + 0.5 * math.sin(_clock * 11);
       c.drawRect(
-        Rect.fromLTRB(lineX - 7 * k, top, lineX + 7 * k, lay.h),
-        _fill(glow.withValues(alpha: (0.15 + 0.30 * pulse) * _tension)),
+        Rect.fromLTRB(lineX - 7 * k, 0, lineX + 7 * k, lay.h),
+        _fill(glow.withValues(alpha: (0.12 + 0.24 * pulse) * _tension)),
       );
     }
 
+    // Center line
     c.drawRect(
-      Rect.fromLTRB(lay.w / 2 - 1.2 * k, top, lay.w / 2 + 1.2 * k, lay.h),
-      _fill(const Color(0xAAFFFFFF)),
+      Rect.fromLTRB(lay.w / 2 - 1.2 * k, 0, lay.w / 2 + 1.2 * k, lay.h),
+      _fill(_Palette.centerLine),
     );
+
+    // Goal lines
     c.drawRect(
-      Rect.fromLTRB(lay.margin - 1.6 * k, top, lay.margin + 1.6 * k, lay.h),
-      _fill(_Palette.team1.withValues(alpha: 0.85)),
+      Rect.fromLTRB(lay.margin - 1.6 * k, 0, lay.margin + 1.6 * k, lay.h),
+      _fill(_Palette.team1.withValues(alpha: 0.75)),
     );
     c.drawRect(
       Rect.fromLTRB(
         lay.w - lay.margin - 1.6 * k,
-        top,
+        0,
         lay.w - lay.margin + 1.6 * k,
         lay.h,
       ),
-      _fill(_Palette.team2.withValues(alpha: 0.85)),
-    );
-  }
-
-  void _paintVignette(Canvas c, _Layout lay) {
-    c.drawRect(
-      Rect.fromLTWH(0, 0, lay.w, lay.h),
-      Paint()
-        ..shader = ui.Gradient.radial(
-          Offset(lay.w / 2, lay.h / 2),
-          math.max(lay.w, lay.h) * 0.75,
-          const [Color(0x00000000), Color(0x22000000)],
-          const [0.6, 1.0],
-        ),
+      _fill(_Palette.team2.withValues(alpha: 0.75)),
     );
   }
 
@@ -578,7 +403,7 @@ class RopeComponent extends PositionComponent {
     final k = lay.k;
     c.drawPath(
       path.shift(Offset(0, 2.2 * k)),
-      _stroke(const Color(0x40000000), 8.5 * k),
+      _stroke(const Color(0x30000000), 8.5 * k),
     );
     c.drawPath(path, _stroke(_Palette.ropeDark, 7.4 * k));
     c.drawPath(path, _stroke(_Palette.rope, 5.6 * k));
@@ -611,7 +436,7 @@ class RopeComponent extends PositionComponent {
       ..lineTo(x + 0.2 * k + wave, y + 18 * k)
       ..lineTo(x - 3.0 * k + wave, y + 23 * k)
       ..close();
-    c.drawPath(ribbon, _fill(const Color(0xFFD7263D)));
+    c.drawPath(ribbon, _fill(AppColors.gold));
     c.drawCircle(Offset(x, y), 5.4 * k, _fill(_Palette.ropeDark));
     c.drawCircle(
       Offset(x - 1.2 * k, y - 1.2 * k),
@@ -639,7 +464,7 @@ class RopeComponent extends PositionComponent {
     // Ground shadow stays on the ground even while a puller jumps.
     c.drawOval(
       Rect.fromCenter(center: const Offset(-4, 1), width: 64, height: 11),
-      _fill(const Color(0x33000000)),
+      _fill(const Color(0x26000000)),
     );
 
     // Jumping winners leave the ground.

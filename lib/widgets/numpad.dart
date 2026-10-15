@@ -1,7 +1,8 @@
 // 📁 FILE: lib/widgets/numpad.dart
-// 📌 WHAT: Flat, minimalist numpad with icon keys, press tint and screen-reader labels
+// 📌 WHAT: Tactile numpad built from ChunkyButton: white digit keys, grey clear key, team-colored submit key
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'chunky_button.dart';
 
 class Numpad extends StatelessWidget {
   final Color accentColor;
@@ -23,7 +24,11 @@ class Numpad extends StatelessWidget {
   static const String _clearLabel = 'Clear';
   static const String _submitLabel = 'Submit answer';
 
-  static const double _keyGap = 4;
+  static const double _keyGap = 3;
+
+  // Key colors: white digits, a soft grey clear key, both with a blue-grey edge.
+  static const Color _keyEdge = Color(0xFFB7C7E2);
+  static const Color _clearFace = Color(0xFFE6EDF8);
 
   @override
   Widget build(BuildContext context) {
@@ -58,104 +63,37 @@ class Numpad extends StatelessWidget {
   Widget _buildKey(String key) {
     switch (key) {
       case _clearKey:
-        return _NumButton(
+        return ChunkyButton(
           semanticLabel: _clearLabel,
-          background: AppColors.backgroundDeep,
-          pressedBackground: AppColors.border,
-          borderColor: Colors.transparent,
+          color: _clearFace,
+          edgeColor: _keyEdge,
           onTap: onClear,
           child: const Icon(
-            Icons.close_rounded,
+            Icons.backspace_rounded,
             size: 24,
             color: AppColors.inkMuted,
           ),
         );
       case _submitKey:
-        return _NumButton(
+        return ChunkyButton(
           semanticLabel: _submitLabel,
-          background: accentColor,
-          pressedBackground: Color.lerp(accentColor, Colors.black, 0.18)!,
-          borderColor: Colors.transparent,
+          color: accentColor,
           onTap: onSubmit,
           child: const Icon(
             Icons.check_rounded,
-            size: 28,
+            size: 30,
             color: Colors.white,
           ),
         );
       default:
-        return _NumButton(
+        return ChunkyButton(
           semanticLabel: key,
-          background: AppColors.surface,
-          pressedBackground: Color.alphaBlend(
-            accentColor.withValues(alpha: 0.14),
-            AppColors.surface,
-          ),
+          color: AppColors.surface,
+          edgeColor: _keyEdge,
           borderColor: AppColors.border,
           onTap: () => onDigit(key),
           child: Text(key, style: AppText.number(size: AppText.sizeDisplay)),
         );
     }
-  }
-}
-
-class _NumButton extends StatefulWidget {
-  final String semanticLabel;
-  final Color background;
-  final Color pressedBackground;
-  final Color borderColor;
-  final VoidCallback onTap;
-  final Widget child;
-
-  const _NumButton({
-    required this.semanticLabel,
-    required this.background,
-    required this.pressedBackground,
-    required this.borderColor,
-    required this.onTap,
-    required this.child,
-  });
-
-  @override
-  State<_NumButton> createState() => _NumButtonState();
-}
-
-class _NumButtonState extends State<_NumButton> {
-  bool _pressed = false;
-
-  void _setPressed(bool value) {
-    if (_pressed != value) setState(() => _pressed = value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: widget.semanticLabel,
-      excludeSemantics: true,
-      onTap: widget.onTap,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => _setPressed(true),
-        onTapUp: (_) => _setPressed(false),
-        onTapCancel: () => _setPressed(false),
-        onTap: widget.onTap,
-        child: AnimatedScale(
-          scale: _pressed ? 0.95 : 1.0,
-          duration: const Duration(milliseconds: 90),
-          curve: Curves.easeOut,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 90),
-            decoration: BoxDecoration(
-              color: _pressed ? widget.pressedBackground : widget.background,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              border: Border.all(color: widget.borderColor, width: 1.5),
-            ),
-            alignment: Alignment.center,
-            child: FittedBox(fit: BoxFit.scaleDown, child: widget.child),
-          ),
-        ),
-      ),
-    );
   }
 }
