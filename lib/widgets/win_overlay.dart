@@ -1,8 +1,9 @@
 // 📁 FILE: lib/widgets/win_overlay.dart
-// 📌 WHAT: Clean result card (flat trophy, flat score pills) with confetti for human wins
+// 📌 WHAT: Sticker result card with tactile buttons, raised score pills and confetti for human wins
 import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../theme/app_theme.dart';
+import 'chunky_button.dart';
 import 'confetti_burst.dart';
 
 /// Result screen shown on top of the game when the round ends.
@@ -35,6 +36,8 @@ class WinOverlay extends StatelessWidget {
   static const String _botLabel = 'Bot';
   static const String _botWinsTitle = 'Bot Wins!';
   static const String _botWinsSubtitle = 'So close! Try again.';
+
+  static const Color _buttonEdge = Color(0xFFB7C7E2);
 
   bool get _botWon => hasBot && winner == 2;
 
@@ -122,12 +125,15 @@ class WinOverlay extends StatelessWidget {
     return SizedBox(
       width: 300,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
         decoration: BoxDecoration(
           color: AppColors.paper,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.border, width: 1.5),
-          boxShadow: AppShadows.card,
+          border: Border.all(color: AppColors.border, width: 2),
+          boxShadow: [
+            const BoxShadow(color: AppColors.border, offset: Offset(0, 5)),
+            ...AppShadows.card,
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -169,40 +175,45 @@ class WinOverlay extends StatelessWidget {
               const SizedBox(height: AppSpacing.xl),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.gold,
-                    foregroundColor: AppColors.onGold,
-                    minimumSize: const Size.fromHeight(52),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    elevation: 0,
-                  ),
-                  onPressed: onPlayAgain,
-                  icon: const Icon(Icons.replay_rounded),
-                  label: Text(
-                    AppStrings.playAgain,
-                    style: AppText.heading(
-                      size: AppText.sizeTitle,
-                      color: AppColors.onGold,
-                    ),
+                height: 62,
+                child: ChunkyButton(
+                  semanticLabel: AppStrings.playAgain,
+                  color: AppColors.gold,
+                  edgeColor: AppColors.goldDark,
+                  radius: AppRadius.md,
+                  depth: 5,
+                  onTap: onPlayAgain,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.replay_rounded,
+                        size: 24,
+                        color: AppColors.onGold,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        AppStrings.playAgain,
+                        style: AppText.heading(
+                          size: AppText.sizeTitle,
+                          color: AppColors.onGold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.md),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.ink,
-                    minimumSize: const Size.fromHeight(48),
-                    side: const BorderSide(color: AppColors.border, width: 1.5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                  ),
-                  onPressed: onMenu,
+                height: 52,
+                child: ChunkyButton(
+                  semanticLabel: AppStrings.backToMenu,
+                  color: AppColors.surface,
+                  edgeColor: _buttonEdge,
+                  borderColor: AppColors.border,
+                  radius: AppRadius.md,
+                  onTap: onMenu,
                   child: Text(
                     AppStrings.backToMenu,
                     style: AppText.body(size: 15),
@@ -216,8 +227,8 @@ class WinOverlay extends StatelessWidget {
     );
   }
 
-  /// A flat icon on a soft round background: gold trophy, a handshake for
-  /// a tie, a robot when the bot wins. It grows in once.
+  /// A flat icon on a soft round background with a thin ring: gold trophy,
+  /// a handshake for a tie, a robot when the bot wins. It grows in once.
   Widget _trophy(bool isTie) {
     final Color baseColor;
     final IconData icon;
@@ -244,18 +255,26 @@ class WinOverlay extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: baseColor.withValues(alpha: 0.16),
+          border: Border.all(
+            color: baseColor.withValues(alpha: 0.5),
+            width: 2,
+          ),
         ),
         child: Icon(icon, size: 54, color: baseColor),
       ),
     );
   }
 
+  /// A raised pill: the team color with a darker edge under it.
   Widget _scorePill(String label, int score, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(AppRadius.sm),
+        boxShadow: [
+          BoxShadow(color: AppColors.edge(color, 0.30), offset: const Offset(0, 3)),
+        ],
       ),
       child: Text(
         '$label: $score',

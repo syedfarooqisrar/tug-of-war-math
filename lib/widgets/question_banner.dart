@@ -1,10 +1,10 @@
 // 📁 FILE: lib/widgets/question_banner.dart
-// 📌 WHAT: Flat shared-question card for Speed Race (no gold glow)
+// 📌 WHAT: Sticker card for the shared Speed Race question with a small pop on every new question
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// Card with the shared question (Speed Race mode). It fades and grows a
-/// little each time the question changes.
+/// Card with the shared question (Speed Race mode). It pops in a little
+/// each time the question changes.
 class QuestionBanner extends StatelessWidget {
   final String text;
   final double fontSize;
@@ -13,6 +13,8 @@ class QuestionBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
     return Semantics(
       liveRegion: true,
       label: 'Question: $text',
@@ -23,15 +25,20 @@ class QuestionBanner extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: AppColors.border, width: 1.5),
-          boxShadow: AppShadows.card,
+          border: Border.all(color: AppColors.border, width: 2),
+          boxShadow: [
+            const BoxShadow(color: AppColors.border, offset: Offset(0, 4)),
+            ...AppShadows.card,
+          ],
         ),
         alignment: Alignment.center,
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 260),
           transitionBuilder: (child, animation) => ScaleTransition(
-            scale: Tween<double>(begin: 0.94, end: 1.0).animate(
-              CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            scale: Tween<double>(begin: 0.88, end: 1.0).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
             ),
             child: FadeTransition(opacity: animation, child: child),
           ),

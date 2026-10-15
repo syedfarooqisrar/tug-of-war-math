@@ -1,5 +1,5 @@
 // 📁 FILE: lib/screens/game_screen.dart
-// 📌 WHAT: Clean game screen: flat scoreboard and arena card, 44-unit round buttons, icons instead of emoji
+// 📌 WHAT: Game screen with tactile round buttons, sticker scoreboard, point-flash ring and urgent timer pop
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import '../core/constants/app_constants.dart';
@@ -10,6 +10,7 @@ import '../game/tug_of_war_game.dart';
 import '../models/game_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bot_panel.dart';
+import '../widgets/chunky_button.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/pause_overlay.dart';
 import '../widgets/quit_confirm_overlay.dart';
@@ -38,7 +39,15 @@ class _GameScreenState extends State<GameScreen> {
   static const String _unmuteLabel = 'Turn sound on';
 
   /// Size of the round buttons (pause, mute, quit), in design units.
-  static const double _buttonSize = 44;
+  static const double _buttonSize = 46;
+
+  // Round button colors.
+  static const Color _buttonEdge = Color(0xFFB7C7E2);
+  static const Color _dangerFace = Color(0xFFFDECEC);
+  static const Color _dangerEdge = Color(0xFFE5A5A0);
+
+  /// How long the colored ring around the arena fades after a point.
+  static const Duration _flashDuration = Duration(milliseconds: 600);
 
   late final GameController controller;
   late final TugOfWarGame game;
@@ -52,6 +61,12 @@ class _GameScreenState extends State<GameScreen> {
   bool _showResult = false;
   bool _confirmingQuit = false;
   bool _pausedForQuit = false;
+
+  // For the point-flash ring: the last scores seen and the color of the
+  // team that scored last.
+  int _prevScore1 = 0;
+  int _prevScore2 = 0;
+  Color _flashColor = Colors.transparent;
 
   @override
   void initState() {
@@ -77,6 +92,17 @@ class _GameScreenState extends State<GameScreen> {
       if (finished) game.setResult(controller.winner);
     }
     _syncSounds();
+
+    // Remember who scored last, for the colored ring around the arena.
+    final score1 = controller.scoreFor(1);
+    final score2 = controller.scoreFor(2);
+    if (score1 > _prevScore1) {
+      _flashColor = AppColors.team1;
+    } else if (score2 > _prevScore2) {
+      _flashColor = AppColors.team2;
+    }
+    _prevScore1 = score1;
+    _prevScore2 = score2;
 
     // Let the arena celebrate for a moment before the result card appears.
     if (finished && !_resultScheduled) {
@@ -173,6 +199,7 @@ class _GameScreenState extends State<GameScreen> {
 
   // ---------- Small building blocks ----------
 
+  /// The number under a team name on the scoreboard. It pops when it changes.
   Widget _scoreboardChip(String label, int score, Color color) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -185,8 +212,48 @@ class _GameScreenState extends State<GameScreen> {
             color: AppColors.inkMuted,
           ),
         ),
-        Text('$score', style: AppText.number(size: 20, color: color)),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 280),
+          transitionBuilder: (child, animation) => ScaleTransition(
+            scale: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutBack,
+            ),
+            child: child,
+          ),
+          child: Text(
+            '$score',
+            key: ValueKey(score),
+            style: AppText.number(size: 22, color: color),
+          ),
+        ),
       ],
+    );
+  }
+
+  /// The seconds left. In the last seconds it pops a little every second.
+  Widget _timerText({required double size}) {
+    final text = Text(
+      '${controller.timeLeft}',
+      style: AppText.number(
+        size: size,
+        color: controller.isUrgent ? AppColors.danger : AppColors.ink,
+      ),
+    );
+
+    final animate = controller.isUrgent &&
+        controller.isPlaying &&
+        !MediaQuery.disableAnimationsOf(context);
+    if (!animate) return text;
+
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(controller.timeLeft),
+      tween: Tween(begin: 1.3, end: 1.0),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      builder: (context, scale, child) =>
+          Transform.scale(scale: scale, child: child),
+      child: text,
     );
   }
 
@@ -228,34 +295,30 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  /// A round icon button (pause, mute, quit). [onTap] null = disabled.
+  /// A round tactile icon button (pause, mute, quit). [onTap] null = disabled.
   Widget _roundButton({
     required IconData icon,
     required String label,
     required VoidCallback? onTap,
-    Color background = AppColors.backgroundDeep,
+    Color face = AppColors.surface,
+    Color edge = _buttonEdge,
+    Color border = AppColors.border,
     Color iconColor = AppColors.ink,
   }) {
-    return Semantics(
-      button: true,
-      enabled: onTap != null,
-      label: label,
-      excludeSemantics: true,
-      onTap: onTap,
-      child: Tooltip(
-        message: label,
-        child: Material(
-          color: background,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: SizedBox(
-              width: _buttonSize,
-              height: _buttonSize,
-              child: Icon(icon, size: 22, color: iconColor),
-            ),
-          ),
+    return Tooltip(
+      message: label,
+      child: SizedBox(
+        width: _buttonSize,
+        height: _buttonSize,
+        child: ChunkyButton(
+          semanticLabel: label,
+          color: face,
+          edgeColor: edge,
+          borderColor: border,
+          radius: _buttonSize / 2,
+          depth: 3,
+          onTap: onTap,
+          child: Icon(icon, size: 22, color: iconColor),
         ),
       ),
     );
@@ -263,14 +326,10 @@ class _GameScreenState extends State<GameScreen> {
 
   /// Round pause button. Faded and inactive unless the round is playing.
   Widget _pauseButton() {
-    final enabled = controller.isPlaying;
-    return Opacity(
-      opacity: enabled ? 1.0 : 0.35,
-      child: _roundButton(
-        icon: Icons.pause_rounded,
-        label: _pauseLabel,
-        onTap: enabled ? controller.pause : null,
-      ),
+    return _roundButton(
+      icon: Icons.pause_rounded,
+      label: _pauseLabel,
+      onTap: controller.isPlaying ? controller.pause : null,
     );
   }
 
@@ -283,9 +342,11 @@ class _GameScreenState extends State<GameScreen> {
           icon: muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
           label: muted ? _unmuteLabel : _muteLabel,
           onTap: SoundService.instance.toggleMute,
-          background: muted
-              ? AppColors.danger.withValues(alpha: 0.12)
-              : AppColors.backgroundDeep,
+          face: muted ? _dangerFace : AppColors.surface,
+          edge: muted ? _dangerEdge : _buttonEdge,
+          border: muted
+              ? AppColors.danger.withValues(alpha: 0.4)
+              : AppColors.border,
           iconColor: muted ? AppColors.danger : AppColors.ink,
         );
       },
@@ -298,7 +359,9 @@ class _GameScreenState extends State<GameScreen> {
       icon: Icons.close_rounded,
       label: AppStrings.quit,
       onTap: _requestQuit,
-      background: AppColors.danger.withValues(alpha: 0.12),
+      face: _dangerFace,
+      edge: _dangerEdge,
+      border: AppColors.danger.withValues(alpha: 0.4),
       iconColor: AppColors.danger,
     );
   }
@@ -312,8 +375,11 @@ class _GameScreenState extends State<GameScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border, width: 1.5),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: AppColors.border, width: 2),
+        boxShadow: [
+          const BoxShadow(color: AppColors.border, offset: Offset(0, 4)),
+          ...AppShadows.card,
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -334,15 +400,7 @@ class _GameScreenState extends State<GameScreen> {
                     size: 14,
                     color: AppColors.inkMuted,
                   ),
-                  Text(
-                    '${controller.timeLeft}',
-                    style: AppText.number(
-                      size: 16,
-                      color: controller.isUrgent
-                          ? AppColors.danger
-                          : AppColors.ink,
-                    ),
-                  ),
+                  _timerText(size: 16),
                 ],
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -363,19 +421,50 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  /// A ring in the color of the team that just scored. It sits on top of
+  /// the arena and fades out. Only this small widget is rebuilt on a new
+  /// score, so the game itself is never restarted.
+  Widget _pointFlashRing() {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final scoreKey = '${controller.scoreFor(1)}_${controller.scoreFor(2)}';
+
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: TweenAnimationBuilder<Color?>(
+          key: ValueKey(scoreKey),
+          tween: ColorTween(begin: _flashColor, end: Colors.transparent),
+          duration: reduceMotion ? Duration.zero : _flashDuration,
+          builder: (context, color, _) => DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: color ?? Colors.transparent,
+                width: 4,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _ropeCard() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border, width: 1.5),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: AppColors.border, width: 2),
+        boxShadow: [
+          const BoxShadow(color: AppColors.border, offset: Offset(0, 4)),
+          ...AppShadows.card,
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
           Positioned.fill(child: GameWidget(game: game)),
+          _pointFlashRing(),
           if (controller.matchPointTeam != 0)
             Positioned(
               left: 0,
@@ -417,9 +506,9 @@ class _GameScreenState extends State<GameScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.92),
+        color: AppColors.surface.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(color: AppColors.border, width: 1.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -430,28 +519,25 @@ class _GameScreenState extends State<GameScreen> {
             color: AppColors.inkMuted,
           ),
           const SizedBox(width: 4),
-          Text(
-            '${controller.timeLeft}',
-            style: AppText.number(
-              size: 14,
-              color: controller.isUrgent ? AppColors.danger : AppColors.ink,
-            ),
-          ),
+          _timerText(size: 14),
         ],
       ),
     );
   }
 
-  /// Pause, mute and quit stacked vertically in a small pill (corner of
-  /// tall screens).
+  /// Pause, mute and quit stacked vertically in a small sticker pill
+  /// (corner of tall screens).
   Widget _cornerButtons() {
     return Container(
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.96),
+        color: AppColors.surface.withValues(alpha: 0.97),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border, width: 1.5),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: AppColors.border, width: 2),
+        boxShadow: [
+          const BoxShadow(color: AppColors.border, offset: Offset(0, 3)),
+          ...AppShadows.card,
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
