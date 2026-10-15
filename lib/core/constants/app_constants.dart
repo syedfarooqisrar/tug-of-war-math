@@ -75,8 +75,8 @@ class LayoutConstants {
 class AppStrings {
   AppStrings._();
 
-  static const String appTitle = 'Tug of War: Mathematics';
-  static const String tagline = 'Two teams race to solve maths and pull the rope!';
+  static const String appTitle = 'MathPull';
+  static const String tagline = 'Solve fast. Pull the rope.';
 
   static const String timesTables = 'Times tables';
   static const String roundLength = 'Round length';

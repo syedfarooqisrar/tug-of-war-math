@@ -1,12 +1,53 @@
+// 📁 FILE: lib/theme/app_theme.dart
+// 📌 WHAT: "Playful Clean" tokens: softly colored background with a faint math-symbol pattern, a stronger outline color and an edge-color helper for tactile buttons
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// All colors used across the app, in one place. Change a value here
 /// and it updates everywhere.
+///
+/// Design rule: a light, softly blue world; the two team colors for the
+/// teams; gold for the main action and the trophy; green, red and orange
+/// only for feedback.
 class AppColors {
+  AppColors._();
+
+  // ---------- Neutrals ----------
+  static const background = Color(0xFFEAF3FF);
+  static const backgroundDeep = Color(0xFFD7E6FA);
+  static const surface = Color(0xFFFFFFFF);
+  static const border = Color(0xFFC9D8EE);
+  static const ink = Color(0xFF1B2433);
+  static const inkMuted = Color(0xFF5B6678);
+  static const inkFaint = Color(0xFF94A3B8);
+
+  /// Cards (start screen, result card). Plain white.
+  static const paper = Color(0xFFFFFFFF);
+
+  // ---------- Teams ----------
+  static const team1 = Color(0xFF2563EB);
+  static const team1Light = Color(0xFFE8F0FE);
+  static const team1Dark = Color(0xFF1D4ED8);
+
+  static const team2 = Color(0xFFDC2626);
+  static const team2Light = Color(0xFFFDECEC);
+  static const team2Dark = Color(0xFFB91C1C);
+
+  // ---------- Accent ----------
+  static const gold = Color(0xFFF5B301);
+  static const goldDark = Color(0xFFB98600);
+
+  /// Dark brown text on gold (readable).
+  static const onGold = Color(0xFF4A3200);
+
+  // ---------- Feedback ----------
+  static const success = Color(0xFF22A559);
+  static const danger = Color(0xFFD92D20);
+  static const fire = Color(0xFFF97316);
+
+  // ---------- Arena scenery ----------
   static const skyTop = Color(0xFF8ECBFF);
   static const skyBottom = Color(0xFFDFF1FF);
   static const grass1 = Color(0xFF6FBE44);
@@ -15,29 +56,75 @@ class AppColors {
   static const rope = Color(0xFFC69A5A);
   static const ropeDark = Color(0xFF7A5B32);
 
-  static const team1 = Color(0xFF2461E8);
-  static const team1Light = Color(0xFFE3ECFF);
-  static const team1Dark = Color(0xFF173E9C);
-
-  static const team2 = Color(0xFFE8432B);
-  static const team2Light = Color(0xFFFFE6E0);
-  static const team2Dark = Color(0xFFA72C19);
-
-  static const gold = Color(0xFFF4B400);
-  static const goldDark = Color(0xFFB98600);
-  static const ink = Color(0xFF1E293B);
-  static const paper = Color(0xFFFFFAF0);
+  /// A darker shade of [color], used as the bottom "edge" of a tactile
+  /// button so it looks raised from the surface.
+  static Color edge(Color color, [double amount = 0.28]) =>
+      Color.lerp(color, Colors.black, amount)!;
 }
 
-/// Reusable text styles. "Fredoka" (rounded/playful) for headings and
-/// numbers, "Nunito" (friendly but readable) for body text.
-class AppText {
-  static TextStyle heading({double size = 24, Color color = AppColors.ink}) =>
-      GoogleFonts.fredoka(fontSize: size, fontWeight: FontWeight.w700, color: color);
+/// Spacing scale. Use these instead of loose numbers.
+class AppSpacing {
+  AppSpacing._();
 
-     /// Digits use Nunito ExtraBold because its 4 is closed and very clear.
-   static TextStyle number({double size = 22, Color color = AppColors.ink}) =>
-       GoogleFonts.nunito(fontSize: size, fontWeight: FontWeight.w800, color: color);
+  static const double xs = 4;
+  static const double sm = 8;
+  static const double md = 12;
+  static const double lg = 16;
+  static const double xl = 24;
+}
+
+/// Corner radius scale.
+class AppRadius {
+  AppRadius._();
+
+  static const double sm = 12;
+  static const double md = 16;
+  static const double lg = 24;
+}
+
+/// One soft shadow for every card, so the app feels consistent.
+class AppShadows {
+  AppShadows._();
+
+  static final List<BoxShadow> card = [
+    BoxShadow(
+      color: const Color(0xFF1B3A6B).withValues(alpha: 0.10),
+      blurRadius: 14,
+      offset: const Offset(0, 4),
+    ),
+  ];
+}
+
+/// Reusable text styles. "Fredoka" (rounded, friendly) for headings and
+/// "Nunito" (clear and readable) for numbers and body text.
+///
+/// Only the font weights that are bundled in assets/google_fonts may be
+/// used (Fredoka 600/700, Nunito 600/700/800). Another weight would make
+/// the app try to download a font.
+class AppText {
+  AppText._();
+
+  // The type scale: use only these sizes in new code.
+  static const double sizeCaption = 12;
+  static const double sizeSmall = 14;
+  static const double sizeTitle = 18;
+  static const double sizeDisplay = 28;
+  static const double sizeHero = 44;
+
+  static TextStyle heading({double size = 24, Color color = AppColors.ink}) =>
+      GoogleFonts.fredoka(
+        fontSize: size,
+        fontWeight: FontWeight.w700,
+        color: color,
+      );
+
+  /// Digits use Nunito ExtraBold because its 4 is closed and very clear.
+  static TextStyle number({double size = 22, Color color = AppColors.ink}) =>
+      GoogleFonts.nunito(
+        fontSize: size,
+        fontWeight: FontWeight.w800,
+        color: color,
+      );
 
   static TextStyle body({
     double size = 15,
@@ -47,150 +134,125 @@ class AppText {
       GoogleFonts.nunito(fontSize: size, fontWeight: weight, color: color);
 }
 
-/// A scenic outdoor background (sky, sun, clouds, hills, mowed grass)
-/// used behind both screens, matching the arena in the game.
+/// The background behind both screens: a soft sky-blue gradient with a
+/// faint pattern of maths symbols (+ − × ÷ =) in the team colors and gold.
+///
+/// The pattern is drawn once on its own layer, so it costs almost nothing
+/// while the game runs.
 class FieldBackground extends StatelessWidget {
   final Widget child;
   const FieldBackground({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: const _FieldPainter(),
-      child: child,
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFD6E9FF), Color(0xFFF3F8FF)],
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const Positioned.fill(
+            child: RepaintBoundary(
+              child: CustomPaint(painter: _MathPatternPainter()),
+            ),
+          ),
+          child,
+        ],
+      ),
     );
   }
 }
 
-class _FieldPainter extends CustomPainter {
-  const _FieldPainter();
+enum _Symbol { plus, minus, times, divide, equals }
+
+class _PatternItem {
+  const _PatternItem(this.x, this.y, this.size, this.turns, this.symbol);
+
+  /// Position as a fraction of the width and height.
+  final double x;
+  final double y;
+
+  /// Half-width of the symbol in logical pixels (before scaling).
+  final double size;
+
+  /// Rotation in turns (0.25 = 90 degrees).
+  final double turns;
+  final _Symbol symbol;
+}
+
+class _MathPatternPainter extends CustomPainter {
+  const _MathPatternPainter();
+
+  static const List<_PatternItem> _items = [
+    _PatternItem(0.08, 0.07, 22, 0.04, _Symbol.plus),
+    _PatternItem(0.34, 0.04, 16, -0.06, _Symbol.times),
+    _PatternItem(0.62, 0.09, 20, 0.08, _Symbol.equals),
+    _PatternItem(0.90, 0.06, 18, -0.03, _Symbol.divide),
+    _PatternItem(0.18, 0.24, 18, -0.05, _Symbol.minus),
+    _PatternItem(0.78, 0.26, 24, 0.05, _Symbol.times),
+    _PatternItem(0.05, 0.44, 20, 0.06, _Symbol.divide),
+    _PatternItem(0.94, 0.47, 18, -0.07, _Symbol.plus),
+    _PatternItem(0.12, 0.64, 22, -0.04, _Symbol.equals),
+    _PatternItem(0.88, 0.68, 20, 0.04, _Symbol.minus),
+    _PatternItem(0.30, 0.82, 18, 0.07, _Symbol.plus),
+    _PatternItem(0.58, 0.90, 22, -0.05, _Symbol.divide),
+    _PatternItem(0.82, 0.88, 18, 0.06, _Symbol.times),
+    _PatternItem(0.06, 0.92, 16, -0.08, _Symbol.times),
+  ];
+
+  static const List<Color> _colors = [
+    AppColors.team1,
+    AppColors.team2,
+    AppColors.gold,
+  ];
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final horizon = h * 0.52;
+    // Bigger screens get bigger symbols, in a sensible range.
+    final scale = (size.shortestSide / 400).clamp(0.8, 2.2).toDouble();
 
-    _sky(canvas, w, h, horizon);
-    _clouds(canvas, w, h, horizon);
-    _hills(canvas, w, h, horizon);
-    _grass(canvas, w, h, horizon);
+    for (var i = 0; i < _items.length; i++) {
+      final item = _items[i];
+      final s = item.size * scale;
+      final paint = Paint()
+        ..color = _colors[i % _colors.length].withValues(alpha: 0.09)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = s * 0.38
+        ..strokeCap = StrokeCap.round;
 
-    // Soft vignette so the edges feel deeper
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, w, h),
-      Paint()
-        ..shader = ui.Gradient.radial(
-          Offset(w / 2, h / 2),
-          math.max(w, h) * 0.8,
-          const [Color(0x00000000), Color(0x22000000)],
-          const [0.55, 1.0],
-        ),
-    );
-  }
-
-  void _sky(Canvas canvas, double w, double h, double horizon) {
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, w, horizon + 2),
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset.zero,
-          Offset(0, horizon),
-          const [Color(0xFF4AA8F0), Color(0xFFA5DCFF), Color(0xFFE6F6FF)],
-          const [0.0, 0.65, 1.0],
-        ),
-    );
-
-    // Sun with a soft glow
-    final sunCenter = Offset(w * 0.85, horizon * 0.35);
-    final sunRadius = math.min(w, h) * 0.06;
-    canvas.drawCircle(
-      sunCenter,
-      sunRadius * 3.6,
-      Paint()
-        ..shader = ui.Gradient.radial(
-          sunCenter,
-          sunRadius * 3.6,
-          const [Color(0xCCFFF3B0), Color(0x33FFE680), Color(0x00FFE680)],
-          const [0.0, 0.4, 1.0],
-        ),
-    );
-    canvas.drawCircle(sunCenter, sunRadius, Paint()..color = const Color(0xFFFFF6C8));
-  }
-
-  void _clouds(Canvas canvas, double w, double h, double horizon) {
-    // x fraction, y fraction (of the sky height), size
-    const clouds = [
-      [0.12, 0.30, 1.0],
-      [0.45, 0.16, 0.8],
-      [0.70, 0.46, 0.9],
-      [0.92, 0.22, 1.1],
-    ];
-    final paint = Paint()..color = const Color(0xE6FFFFFF);
-    for (final cloud in clouds) {
-      final s = h * 0.04 * cloud[2];
-      final x = w * cloud[0];
-      final y = horizon * cloud[1];
-      canvas.drawCircle(Offset(x, y), s, paint);
-      canvas.drawCircle(Offset(x - s * 0.95, y + s * 0.28), s * 0.7, paint);
-      canvas.drawCircle(Offset(x + s * 1.0, y + s * 0.25), s * 0.78, paint);
-      canvas.drawCircle(Offset(x + s * 0.2, y - s * 0.35), s * 0.72, paint);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(x - s * 1.5, y + s * 0.2, x + s * 1.65, y + s * 0.95),
-          Radius.circular(s * 0.4),
-        ),
-        paint,
-      );
+      canvas.save();
+      canvas.translate(size.width * item.x, size.height * item.y);
+      canvas.rotate(item.turns * 2 * math.pi);
+      _drawSymbol(canvas, item.symbol, s, paint);
+      canvas.restore();
     }
   }
 
-  void _hill(
-    Canvas canvas,
-    double w,
-    double horizon,
-    Color color,
-    double amp,
-    double freq,
-    double phase,
-    double base,
-  ) {
-    final path = Path()..moveTo(0, horizon + 2);
-    for (double x = 0; x <= w + 6; x += 6) {
-      final y = base - amp * (math.sin(x / w * math.pi * 2 * freq + phase) * 0.5 + 0.5);
-      path.lineTo(x, y);
-    }
-    path.lineTo(w, horizon + 2);
-    path.close();
-    canvas.drawPath(path, Paint()..color = color);
-  }
-
-  void _hills(Canvas canvas, double w, double h, double horizon) {
-    _hill(canvas, w, horizon, const Color(0xFF9AD6A8), h * 0.09, 1.1, 0.6, horizon - h * 0.01);
-    _hill(canvas, w, horizon, const Color(0xFF7CC47E), h * 0.06, 1.6, 2.0, horizon);
-  }
-
-  void _grass(Canvas canvas, double w, double h, double horizon) {
-    canvas.drawRect(
-      Rect.fromLTRB(0, horizon, w, h),
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, horizon),
-          Offset(0, h),
-          const [Color(0xFF8CD65C), Color(0xFF63B03B), Color(0xFF3F8A2A)],
-          const [0.0, 0.5, 1.0],
-        ),
-    );
-
-    // Mowing stripes that get thicker toward the viewer (perspective)
-    const bands = 10;
-    for (var i = 0; i < bands; i += 2) {
-      final y0 = horizon + (h - horizon) * math.pow(i / bands, 1.5).toDouble();
-      final y1 = horizon + (h - horizon) * math.pow((i + 1) / bands, 1.5).toDouble();
-      canvas.drawRect(
-        Rect.fromLTRB(0, y0, w, y1),
-        Paint()..color = const Color(0x14000000),
-      );
+  void _drawSymbol(Canvas c, _Symbol symbol, double s, Paint paint) {
+    switch (symbol) {
+      case _Symbol.plus:
+        c.drawLine(Offset(-s, 0), Offset(s, 0), paint);
+        c.drawLine(Offset(0, -s), Offset(0, s), paint);
+      case _Symbol.minus:
+        c.drawLine(Offset(-s, 0), Offset(s, 0), paint);
+      case _Symbol.times:
+        c.drawLine(Offset(-s * 0.8, -s * 0.8), Offset(s * 0.8, s * 0.8), paint);
+        c.drawLine(Offset(-s * 0.8, s * 0.8), Offset(s * 0.8, -s * 0.8), paint);
+      case _Symbol.divide:
+        c.drawLine(Offset(-s, 0), Offset(s, 0), paint);
+        final dot = Paint()
+          ..color = paint.color
+          ..style = PaintingStyle.fill;
+        c.drawCircle(Offset(0, -s * 0.75), paint.strokeWidth * 0.6, dot);
+        c.drawCircle(Offset(0, s * 0.75), paint.strokeWidth * 0.6, dot);
+      case _Symbol.equals:
+        c.drawLine(Offset(-s, -s * 0.4), Offset(s, -s * 0.4), paint);
+        c.drawLine(Offset(-s, s * 0.4), Offset(s, s * 0.4), paint);
     }
   }
 

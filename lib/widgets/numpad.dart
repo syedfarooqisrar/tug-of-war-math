@@ -1,5 +1,8 @@
+// 📁 FILE: lib/widgets/numpad.dart
+// 📌 WHAT: Tactile numpad built from ChunkyButton: white digit keys, grey clear key, team-colored submit key
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'chunky_button.dart';
 
 class Numpad extends StatelessWidget {
   final Color accentColor;
@@ -15,39 +18,38 @@ class Numpad extends StatelessWidget {
     required this.onSubmit,
   });
 
+  static const String _clearKey = 'clr';
+  static const String _submitKey = 'go';
+
+  static const String _clearLabel = 'Clear';
+  static const String _submitLabel = 'Submit answer';
+
+  static const double _keyGap = 3;
+
+  // Key colors: white digits, a soft grey clear key, both with a blue-grey edge.
+  static const Color _keyEdge = Color(0xFFB7C7E2);
+  static const Color _clearFace = Color(0xFFE6EDF8);
+
   @override
   Widget build(BuildContext context) {
-    final rows = [
+    const rows = [
       ['1', '2', '3'],
       ['4', '5', '6'],
       ['7', '8', '9'],
-      ['clr', '0', 'go'],
+      [_clearKey, '0', _submitKey],
     ];
 
     return Column(
       children: rows.map((row) {
         return Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3.5),
+            padding: const EdgeInsets.symmetric(vertical: _keyGap),
             child: Row(
               children: row.map((key) {
-                Widget button;
-                if (key == 'clr') {
-                  button = _NumButton(label: '✕', color: Colors.grey.shade400, onTap: onClear);
-                } else if (key == 'go') {
-                  button = _NumButton(label: '✓', color: accentColor, onTap: onSubmit);
-                } else {
-                  button = _NumButton(
-                    label: key,
-                    color: Colors.white,
-                    textColor: AppColors.ink,
-                    onTap: () => onDigit(key),
-                  );
-                }
                 return Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3.5),
-                    child: button,
+                    padding: const EdgeInsets.symmetric(horizontal: _keyGap),
+                    child: _buildKey(key),
                   ),
                 );
               }).toList(),
@@ -57,56 +59,41 @@ class Numpad extends StatelessWidget {
       }).toList(),
     );
   }
-}
 
-class _NumButton extends StatefulWidget {
-  final String label;
-  final Color color;
-  final Color textColor;
-  final VoidCallback onTap;
-
-  const _NumButton({
-    required this.label,
-    required this.color,
-    this.textColor = Colors.white,
-    required this.onTap,
-  });
-
-  @override
-  State<_NumButton> createState() => _NumButtonState();
-}
-
-class _NumButtonState extends State<_NumButton> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _pressed ? 0.90 : 1.0,
-        duration: const Duration(milliseconds: 90),
-        curve: Curves.easeOut,
-        child: Container(
-          decoration: BoxDecoration(
-            color: widget.color,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: _pressed
-                ? []
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
+  Widget _buildKey(String key) {
+    switch (key) {
+      case _clearKey:
+        return ChunkyButton(
+          semanticLabel: _clearLabel,
+          color: _clearFace,
+          edgeColor: _keyEdge,
+          onTap: onClear,
+          child: const Icon(
+            Icons.backspace_rounded,
+            size: 24,
+            color: AppColors.inkMuted,
           ),
-          alignment: Alignment.center,
-          child: Text(widget.label, style: AppText.number(size: 22, color: widget.textColor)),
-        ),
-      ),
-    );
+        );
+      case _submitKey:
+        return ChunkyButton(
+          semanticLabel: _submitLabel,
+          color: accentColor,
+          onTap: onSubmit,
+          child: const Icon(
+            Icons.check_rounded,
+            size: 30,
+            color: Colors.white,
+          ),
+        );
+      default:
+        return ChunkyButton(
+          semanticLabel: key,
+          color: AppColors.surface,
+          edgeColor: _keyEdge,
+          borderColor: AppColors.border,
+          onTap: () => onDigit(key),
+          child: Text(key, style: AppText.number(size: AppText.sizeDisplay)),
+        );
+    }
   }
 }
