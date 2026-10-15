@@ -1,5 +1,5 @@
 // 📁 FILE: lib/widgets/team_panel.dart
-// 📌 WHAT: Clean team panel: flat tinted header, score pill, flat question and answer boxes
+// 📌 WHAT: Playful team panel: solid team-color header, raised score pill, sticker outline, inset answer field
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -11,7 +11,7 @@ import 'numpad.dart';
 class TeamPanel extends StatefulWidget {
   final String teamLabel;
 
-  /// Not used any more (the header shows a color dot instead of an emoji).
+  /// Not used any more (the header shows an icon instead of an emoji).
   /// Kept so existing callers still compile; it will be removed later.
   final String flagEmoji;
   final Color color;
@@ -62,7 +62,7 @@ class TeamPanel extends StatefulWidget {
 }
 
 class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
-  /// Darker orange for text on the light orange badge (readable).
+  /// Darker orange for text on the white flame badge (readable).
   static const Color _fireText = Color(0xFFC2410C);
 
   /// How strong the right/wrong color flash starts (fades to 0).
@@ -74,6 +74,12 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
   int _playingPoints = 1;
 
   bool get _onFire => widget.streak >= GameConfig.streakForBonus;
+
+  /// Darker shade of the team color (header edge, score pill edge).
+  Color get _edge => AppColors.edge(widget.color, 0.30);
+
+  /// Soft light shade of the team color (the solid edge under the panel).
+  Color get _soft => Color.lerp(widget.color, Colors.white, 0.55)!;
 
   @override
   void initState() {
@@ -114,8 +120,6 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
     _flame.dispose();
     super.dispose();
   }
-
-  Color get _textColor => Color.lerp(widget.color, Colors.black, 0.25)!;
 
   @override
   Widget build(BuildContext context) {
@@ -217,8 +221,14 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.border, width: 1.5),
-            boxShadow: AppShadows.card,
+            border: Border.all(
+              color: widget.color.withValues(alpha: 0.45),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(color: _soft, offset: const Offset(0, 4)),
+              ...AppShadows.card,
+            ],
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -268,30 +278,30 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
     );
   }
 
-  /// Flat header: light team tint, a color dot, the team name, the score
-  /// pill and the streak meter.
+  /// Solid team-color header with a darker edge, the team name, the raised
+  /// score pill and the streak meter.
   Widget _header(bool tight) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(vertical: tight ? 6 : 10, horizontal: 8),
-      color: widget.lightColor,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color.lerp(widget.color, Colors.white, 0.14)!, widget.color],
+        ),
+        border: Border(bottom: BorderSide(color: _edge, width: 3)),
+      ),
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: widget.color,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 8),
+            const Icon(Icons.groups_rounded, size: 20, color: Colors.white),
+            const SizedBox(width: 6),
             Text(
               widget.teamLabel,
-              style: AppText.heading(size: 16, color: _textColor),
+              style: AppText.heading(size: 16, color: Colors.white),
             ),
             const SizedBox(width: 10),
             _scoreBadge(),
@@ -303,14 +313,16 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
     );
   }
 
-  /// Solid team-color pill. The number pops in whenever the score changes.
+  /// White pill with a darker edge under it (looks raised). The number pops
+  /// in whenever the score changes.
   Widget _scoreBadge() {
     return Container(
       constraints: const BoxConstraints(minWidth: 34),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       decoration: BoxDecoration(
-        color: widget.color,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: _edge, offset: const Offset(0, 2))],
       ),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
@@ -322,7 +334,7 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
           '${widget.score}',
           key: ValueKey(widget.score),
           textAlign: TextAlign.center,
-          style: AppText.number(size: 17, color: Colors.white),
+          style: AppText.number(size: 17, color: widget.color),
         ),
       ),
     );
@@ -346,14 +358,14 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
       children: [
         for (var i = 0; i < GameConfig.streakForBonus; i++)
           Container(
-            width: 8,
-            height: 8,
+            width: 9,
+            height: 9,
             margin: const EdgeInsets.symmetric(horizontal: 2),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: i < widget.streak
-                  ? widget.color
-                  : widget.color.withValues(alpha: 0.25),
+                  ? Colors.white
+                  : Colors.white.withValues(alpha: 0.35),
             ),
           ),
       ],
@@ -363,15 +375,20 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
   Widget _fireBadge() {
     return ScaleTransition(
       key: const ValueKey('fire'),
-      scale: Tween<double>(begin: 0.94, end: 1.06).animate(
+      scale: Tween<double>(begin: 0.94, end: 1.08).animate(
         CurvedAnimation(parent: _flame, curve: Curves.easeInOut),
       ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
-          color: AppColors.fire.withValues(alpha: 0.14),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.fire, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.fire.withValues(alpha: 0.55),
+              blurRadius: 10,
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -396,8 +413,16 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
       width: double.infinity,
       padding: EdgeInsets.symmetric(vertical: tight ? 6 : 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [widget.lightColor, Colors.white],
+        ),
         borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: widget.color.withValues(alpha: 0.30),
+          width: 2,
+        ),
       ),
       alignment: Alignment.center,
       child: FittedBox(
@@ -410,8 +435,9 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
     );
   }
 
-  /// Shows what the team has typed. The border is in the team color and
-  /// the box gets a light tint as soon as there is at least one digit.
+  /// Shows what the team has typed. It looks like a field pressed into the
+  /// panel (soft blue); with a digit it takes the team tint and a strong
+  /// team-color border.
   Widget _answerBox(bool tight) {
     final hasInput = widget.currentInput.isNotEmpty;
     return AnimatedContainer(
@@ -419,10 +445,10 @@ class _TeamPanelState extends State<TeamPanel> with TickerProviderStateMixin {
       width: double.infinity,
       height: tight ? 36 : 46,
       decoration: BoxDecoration(
-        color: hasInput ? widget.lightColor : AppColors.surface,
+        color: hasInput ? widget.lightColor : AppColors.background,
         border: Border.all(
-          color: hasInput ? widget.color : AppColors.border,
-          width: 2,
+          color: hasInput ? widget.color : widget.color.withValues(alpha: 0.35),
+          width: 2.5,
         ),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
