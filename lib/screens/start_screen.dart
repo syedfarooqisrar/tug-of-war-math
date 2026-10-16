@@ -7,6 +7,7 @@ import '../models/game_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chunky_button.dart';
 import 'game_screen.dart';
+import '../core/services/music_service.dart';
 
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
@@ -27,6 +28,12 @@ class _StartScreenState extends State<StartScreen> {
   // Labels for the single-player options.
   static const String _playersLabel = 'Players';
   static const String _botLevelLabel = 'Bot level';
+  
+  @override
+  void initState() {
+    super.initState();
+    MusicService.instance.play(MusicTrack.menu);
+  }
 
   /// Height of an option chip including its edge (the face is 4 less,
   /// still at least 48 for easy tapping).
@@ -130,8 +137,8 @@ class _StartScreenState extends State<StartScreen> {
         ),
       );
 
-  void _startGame() {
-    Navigator.push(
+  Future<void> _startGame() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => GameScreen(
@@ -147,6 +154,9 @@ class _StartScreenState extends State<StartScreen> {
         ),
       ),
     );
+
+    // Back from the game: the menu music returns.
+    MusicService.instance.play(MusicTrack.menu);
   }
 
   // ---------- Building blocks shared by both layouts ----------

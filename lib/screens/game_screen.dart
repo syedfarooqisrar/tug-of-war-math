@@ -18,6 +18,7 @@ import '../widgets/question_banner.dart';
 import '../widgets/team_panel.dart';
 import '../widgets/win_overlay.dart';
 import '../widgets/match_point_banner.dart';
+import '../core/services/music_service.dart';
 
 class GameScreen extends StatefulWidget {
   final GameSettings settings;
@@ -61,6 +62,8 @@ class _GameScreenState extends State<GameScreen> {
   bool _showResult = false;
   bool _confirmingQuit = false;
   bool _pausedForQuit = false;
+  bool _musicStarted = false;
+  bool _musicFaded = false;
 
   // For the point-flash ring: the last scores seen and the color of the
   // team that scored last.
@@ -75,7 +78,8 @@ class _GameScreenState extends State<GameScreen> {
     game = TugOfWarGame();
     controller.addListener(_onControllerChanged);
     controller.start();
-
+    MusicService.instance.fadeOut();
+    
     // Load the sounds, then play the sound for the number on screen
     // (the "3" of the countdown).
     SoundService.instance.init().then((_) {
@@ -92,6 +96,7 @@ class _GameScreenState extends State<GameScreen> {
       if (finished) game.setResult(controller.winner);
     }
     _syncSounds();
+    _syncMusic();
 
     // Remember who scored last, for the colored ring around the arena.
     final score1 = controller.scoreFor(1);
@@ -110,6 +115,32 @@ class _GameScreenState extends State<GameScreen> {
       Future.delayed(GameConfig.resultDelay, () {
         if (mounted) setState(() => _showResult = true);
       });
+    }
+  }
+  
+  /// Keeps the music in step with the round.
+  void _syncMusic() {
+    final music = MusicService.instance;
+
+    // The music starts at "GO!" (the countdown stays clear for the ticks).
+    if (controller.isPlaying && !_musicStarted) {
+      _musicStarted = true;
+      music.play(MusicTrack.game);
+    }
+
+    // Quieter while paused or while the quit question is open.
+    music.duck(controller.isPaused);
+
+    // A bit faster when the round is tense: match point or the last seconds.
+    music.setTension(
+      controller.isPlaying &&
+          (controller.matchPointTeam != 0 || controller.isUrgent),
+    );
+
+    // The round is over: fade the music out so the win sound is clear.
+    if (controller.isFinished && !_musicFaded) {
+      _musicFaded = true;
+      music.fadeOut();
     }
   }
 
