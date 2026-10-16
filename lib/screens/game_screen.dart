@@ -140,7 +140,15 @@ class _GameScreenState extends State<GameScreen> {
           final correct =
               controller.lastResultFor(team) == AnswerResult.correct;
           final bonus = controller.lastPointsFor(team) > 1;
-          sound.play(correct ? (bonus ? Sfx.bonus : Sfx.correct) : Sfx.wrong);
+          if (!correct) {
+            sound.play(Sfx.wrong);
+          } else if (bonus) {
+            sound.play(Sfx.bonus);
+          } else {
+            // The chime climbs with the streak: 1st, 2nd, 3rd in a row.
+            final level = (controller.streakFor(team) - 1).clamp(0, 2).toInt();
+            sound.play(Sfx.correct, level: level);
+          }
         }
       }
     }
@@ -148,7 +156,13 @@ class _GameScreenState extends State<GameScreen> {
     // 3. End of the round.
     if (justFinished) {
       _finishHandled = true;
-      sound.play(Sfx.win);
+      if (controller.winner == 0) {
+        sound.play(Sfx.tie);
+      } else if (controller.hasBot && controller.winner == 2) {
+        sound.play(Sfx.lose);
+      } else {
+        sound.play(Sfx.win);
+      }
     }
   }
 
@@ -283,7 +297,10 @@ class _GameScreenState extends State<GameScreen> {
       score: controller.scoreFor(team),
       questionText: controller.questionFor(team).text,
       currentInput: controller.inputFor(team),
-      onDigit: (digit) => controller.pressDigit(team, digit),
+      onDigit: (digit) {
+        if (controller.isPlaying) SoundService.instance.play(Sfx.tap);
+        controller.pressDigit(team, digit);
+      },
       onClear: () => controller.clearInput(team),
       onSubmit: () => controller.submit(team),
       lastResult: controller.lastResultFor(team),

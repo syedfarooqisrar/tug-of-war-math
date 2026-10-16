@@ -23,3 +23,5 @@ flutter:
   assets:
     - assets/google_fonts/
     - assets/sounds/
+    - assets/audio/sfx/
+    - assets/audio/music/
