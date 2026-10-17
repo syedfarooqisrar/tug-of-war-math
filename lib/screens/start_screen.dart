@@ -7,6 +7,9 @@ import '../models/game_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chunky_button.dart';
 import 'game_screen.dart';
+import '../core/services/music_service.dart';
+import '../core/services/audio_settings.dart';
+import '../widgets/audio_toggles.dart';
 
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
@@ -27,6 +30,15 @@ class _StartScreenState extends State<StartScreen> {
   // Labels for the single-player options.
   static const String _playersLabel = 'Players';
   static const String _botLevelLabel = 'Bot level';
+  
+   @override
+  void initState() {
+    super.initState();
+    // Load the saved music/sound choices, then start the menu music.
+    AudioSettings.instance
+        .load()
+        .then((_) => MusicService.instance.play(MusicTrack.menu));
+  }
 
   /// Height of an option chip including its edge (the face is 4 less,
   /// still at least 48 for easy tapping).
@@ -130,8 +142,8 @@ class _StartScreenState extends State<StartScreen> {
         ),
       );
 
-  void _startGame() {
-    Navigator.push(
+  Future<void> _startGame() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => GameScreen(
@@ -147,6 +159,9 @@ class _StartScreenState extends State<StartScreen> {
         ),
       ),
     );
+
+    // Back from the game: the menu music returns.
+    MusicService.instance.play(MusicTrack.menu);
   }
 
   // ---------- Building blocks shared by both layouts ----------
@@ -354,16 +369,27 @@ class _StartScreenState extends State<StartScreen> {
   /// Tall screens (phones, tablets held upright): one column.
   Widget _tallCard() {
     return Container(
-      padding: const EdgeInsets.all(22),
       decoration: _cardDecoration(),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
         children: [
-          _titleBlock(trophySize: 60, titleSize: AppText.sizeDisplay + 4),
-          const SizedBox(height: AppSpacing.xl),
-          _options(),
-          const SizedBox(height: AppSpacing.xl),
-          _startButton(),
+          Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _titleBlock(
+                  trophySize: 60,
+                  titleSize: AppText.sizeDisplay + 4,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                _options(),
+                const SizedBox(height: AppSpacing.xl),
+                _startButton(),
+              ],
+            ),
+          ),
+          // Music and Sound switches inside the card, top-right.
+          const Positioned(top: 12, right: 12, child: AudioToggles()),
         ],
       ),
     );
@@ -373,73 +399,90 @@ class _StartScreenState extends State<StartScreen> {
   /// the options on the right.
   Widget _wideCard() {
     return Container(
-      padding: const EdgeInsets.all(28),
       decoration: _cardDecoration(),
-      child: Row(
+      child: Stack(
         children: [
-          Expanded(
-            flex: 4,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+          Padding(
+            padding: const EdgeInsets.all(28),
+            child: Row(
               children: [
-                _titleBlock(trophySize: 92, titleSize: 40),
-                const SizedBox(height: 28),
-                _startButton(),
+                Expanded(
+                  flex: 4,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _titleBlock(trophySize: 92, titleSize: 40),
+                      const SizedBox(height: 28),
+                      _startButton(),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 32),
+                Expanded(flex: 6, child: _options()),
               ],
             ),
           ),
-          const SizedBox(width: 32),
-          Expanded(flex: 6, child: _options()),
+          // Music and Sound switches inside the card, top-left (the right
+          // side holds the options).
+          const Positioned(top: 12, left: 12, child: AudioToggles()),
         ],
       ),
     );
   }
-
+  /// The main content of the start screen.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: FieldBackground(
         child: SafeArea(
-          child: ScaledView(
-            landscapeReference: const Size(
-              LayoutConstants.startWideRefWidth,
-              LayoutConstants.startWideRefHeight,
-            ),
-            portraitReference: const Size(
-              LayoutConstants.startRefWidth,
-              LayoutConstants.startRefHeight,
-            ),
-            builder: (context, size, boardMode) {
-              final wide = boardMode == BoardMode.sideBySide;
-              final cardWidth = wide
-                  ? LayoutConstants.startWideCardWidth
-                  : LayoutConstants.startCardWidth;
-              final card = wide ? _wideCard() : _tallCard();
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: ScaledView(
+                  landscapeReference: const Size(
+                    LayoutConstants.startWideRefWidth,
+                    LayoutConstants.startWideRefHeight,
+                  ),
+                  portraitReference: const Size(
+                    LayoutConstants.startRefWidth,
+                    LayoutConstants.startRefHeight,
+                  ),
+                  builder: (context, size, boardMode) {
+                    final wide = boardMode == BoardMode.sideBySide;
+                    final cardWidth = wide
+                        ? LayoutConstants.startWideCardWidth
+                        : LayoutConstants.startCardWidth;
+                    final card = wide ? _wideCard() : _tallCard();
 
-              // Normal screens: the whole card is always visible (it shrinks
-              // a little if needed). Short screens (a phone on its side):
-              // the card scrolls instead.
-              final fits =
-                  size.height >= LayoutConstants.startScrollBelowHeight;
+                    // Normal screens: the whole card is always visible (it
+                    // shrinks a little if needed). Short screens (a phone on
+                    // its side): the card scrolls instead.
+                    final fits =
+                        size.height >= LayoutConstants.startScrollBelowHeight;
 
-              return Center(
-                child: fits
-                    ? Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: SizedBox(width: cardWidth, child: card),
-                        ),
-                      )
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.all(16),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: cardWidth),
-                          child: card,
-                        ),
-                      ),
-              );
-            },
+                    return Center(
+                      child: fits
+                          ? Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: SizedBox(width: cardWidth, child: card),
+                              ),
+                            )
+                          : SingleChildScrollView(
+                              padding: const EdgeInsets.all(16),
+                              child: ConstrainedBox(
+                                constraints:
+                                    BoxConstraints(maxWidth: cardWidth),
+                                child: card,
+                              ),
+                            ),
+                    );
+                  },
+                ),
+              ),
+              
+            ],
           ),
         ),
       ),

@@ -18,6 +18,8 @@ import '../widgets/question_banner.dart';
 import '../widgets/team_panel.dart';
 import '../widgets/win_overlay.dart';
 import '../widgets/match_point_banner.dart';
+import '../core/services/music_service.dart';
+import '../core/services/audio_settings.dart';
 
 class GameScreen extends StatefulWidget {
   final GameSettings settings;
@@ -61,6 +63,8 @@ class _GameScreenState extends State<GameScreen> {
   bool _showResult = false;
   bool _confirmingQuit = false;
   bool _pausedForQuit = false;
+  bool _musicStarted = false;
+  bool _musicFaded = false;
 
   // For the point-flash ring: the last scores seen and the color of the
   // team that scored last.
@@ -75,7 +79,8 @@ class _GameScreenState extends State<GameScreen> {
     game = TugOfWarGame();
     controller.addListener(_onControllerChanged);
     controller.start();
-
+    MusicService.instance.fadeOut();
+    
     // Load the sounds, then play the sound for the number on screen
     // (the "3" of the countdown).
     SoundService.instance.init().then((_) {
@@ -92,6 +97,7 @@ class _GameScreenState extends State<GameScreen> {
       if (finished) game.setResult(controller.winner);
     }
     _syncSounds();
+    _syncMusic();
 
     // Remember who scored last, for the colored ring around the arena.
     final score1 = controller.scoreFor(1);
@@ -110,6 +116,32 @@ class _GameScreenState extends State<GameScreen> {
       Future.delayed(GameConfig.resultDelay, () {
         if (mounted) setState(() => _showResult = true);
       });
+    }
+  }
+  
+  /// Keeps the music in step with the round.
+  void _syncMusic() {
+    final music = MusicService.instance;
+
+    // The music starts at "GO!" (the countdown stays clear for the ticks).
+    if (controller.isPlaying && !_musicStarted) {
+      _musicStarted = true;
+      music.play(MusicTrack.game);
+    }
+
+    // Quieter while paused or while the quit question is open.
+    music.duck(controller.isPaused);
+
+    // A bit faster when the round is tense: match point or the last seconds.
+    music.setTension(
+      controller.isPlaying &&
+          (controller.matchPointTeam != 0 || controller.isUrgent),
+    );
+
+    // The round is over: fade the music out so the win sound is clear.
+    if (controller.isFinished && !_musicFaded) {
+      _musicFaded = true;
+      music.fadeOut();
     }
   }
 
@@ -140,7 +172,15 @@ class _GameScreenState extends State<GameScreen> {
           final correct =
               controller.lastResultFor(team) == AnswerResult.correct;
           final bonus = controller.lastPointsFor(team) > 1;
-          sound.play(correct ? (bonus ? Sfx.bonus : Sfx.correct) : Sfx.wrong);
+          if (!correct) {
+            sound.play(Sfx.wrong);
+          } else if (bonus) {
+            sound.play(Sfx.bonus);
+          } else {
+            // The chime climbs with the streak: 1st, 2nd, 3rd in a row.
+            final level = (controller.streakFor(team) - 1).clamp(0, 2).toInt();
+            sound.play(Sfx.correct, level: level);
+          }
         }
       }
     }
@@ -148,7 +188,13 @@ class _GameScreenState extends State<GameScreen> {
     // 3. End of the round.
     if (justFinished) {
       _finishHandled = true;
-      sound.play(Sfx.win);
+      if (controller.winner == 0) {
+        sound.play(Sfx.tie);
+      } else if (controller.hasBot && controller.winner == 2) {
+        sound.play(Sfx.lose);
+      } else {
+        sound.play(Sfx.win);
+      }
     }
   }
 
@@ -283,7 +329,10 @@ class _GameScreenState extends State<GameScreen> {
       score: controller.scoreFor(team),
       questionText: controller.questionFor(team).text,
       currentInput: controller.inputFor(team),
-      onDigit: (digit) => controller.pressDigit(team, digit),
+      onDigit: (digit) {
+        if (controller.isPlaying) SoundService.instance.play(Sfx.tap);
+        controller.pressDigit(team, digit);
+      },
       onClear: () => controller.clearInput(team),
       onSubmit: () => controller.submit(team),
       lastResult: controller.lastResultFor(team),
@@ -333,15 +382,20 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  /// Sound on/off button. Muting also turns off vibration.
+    /// Sound button: turns music, sound effects and vibration off together,
+  /// or back on. (The pause card has a separate switch for each.)
   Widget _muteButton() {
-    return ValueListenableBuilder<bool>(
-      valueListenable: SoundService.instance.muted,
-      builder: (context, muted, _) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        MusicService.instance.enabled,
+        SoundService.instance.muted,
+      ]),
+      builder: (context, _) {
+        final muted = AudioSettings.instance.allOff;
         return _roundButton(
           icon: muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
           label: muted ? _unmuteLabel : _muteLabel,
-          onTap: SoundService.instance.toggleMute,
+          onTap: AudioSettings.instance.toggleAll,
           face: muted ? _dangerFace : AppColors.surface,
           edge: muted ? _dangerEdge : _buttonEdge,
           border: muted
