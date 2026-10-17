@@ -1,8 +1,9 @@
 // 📁 FILE: lib/widgets/pause_overlay.dart
-// 📌 WHAT: Sticker pause card with tactile buttons
+// 📌 WHAT: Sticker pause card with Music and Sound switches and tactile buttons
 import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../theme/app_theme.dart';
+import 'audio_toggles.dart';
 import 'chunky_button.dart';
 
 /// Dark layer with a small sticker card shown while the round is paused.
@@ -69,7 +70,9 @@ class PauseOverlay extends StatelessWidget {
                 AppStrings.paused,
                 style: AppText.heading(size: AppText.sizeDisplay),
               ),
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
+              const AudioToggles(labeled: true),
+              const SizedBox(height: AppSpacing.lg),
               SizedBox(
                 width: double.infinity,
                 height: 60,

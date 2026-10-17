@@ -103,10 +103,13 @@ class SoundService {
     }
   }
 
-  /// Turns sound and vibration on or off.
-  void toggleMute() {
-    muted.value = !muted.value;
-    if (muted.value) {
+    /// Turns sound and vibration on or off.
+  void toggleMute() => setMuted(!muted.value);
+
+  /// Sets sound and vibration off ([value] true) or on (false).
+  void setMuted(bool value) {
+    muted.value = value;
+    if (value) {
       for (final player in _players.values) {
         player.stop();
       }

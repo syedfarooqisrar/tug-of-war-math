@@ -3,7 +3,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'sound_service.dart';
+
 
 /// The two music loops.
 enum MusicTrack { menu, game }
@@ -57,11 +57,7 @@ class MusicService with WidgetsBindingObserver {
   /// Goes up whenever something new starts, so an old fade stops itself.
   int _generation = 0;
 
-  bool get _shouldPlay =>
-      _track != null &&
-      enabled.value &&
-      !SoundService.instance.muted.value &&
-      !_inBackground;
+  bool get _shouldPlay => _track != null && enabled.value && !_inBackground;
 
   double get _targetVolume => _baseVolume * (_ducked ? _duckFactor : 1.0);
 
@@ -69,7 +65,6 @@ class MusicService with WidgetsBindingObserver {
     if (_ready) return;
     _ready = true;
     WidgetsBinding.instance.addObserver(this);
-    SoundService.instance.muted.addListener(() => _sync());
     enabled.addListener(() => _sync());
     try {
       await AudioCache.instance.loadAll(_files.values.toList());

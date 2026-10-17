@@ -19,6 +19,7 @@ import '../widgets/team_panel.dart';
 import '../widgets/win_overlay.dart';
 import '../widgets/match_point_banner.dart';
 import '../core/services/music_service.dart';
+import '../core/services/audio_settings.dart';
 
 class GameScreen extends StatefulWidget {
   final GameSettings settings;
@@ -381,15 +382,20 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  /// Sound on/off button. Muting also turns off vibration.
+    /// Sound button: turns music, sound effects and vibration off together,
+  /// or back on. (The pause card has a separate switch for each.)
   Widget _muteButton() {
-    return ValueListenableBuilder<bool>(
-      valueListenable: SoundService.instance.muted,
-      builder: (context, muted, _) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        MusicService.instance.enabled,
+        SoundService.instance.muted,
+      ]),
+      builder: (context, _) {
+        final muted = AudioSettings.instance.allOff;
         return _roundButton(
           icon: muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
           label: muted ? _unmuteLabel : _muteLabel,
-          onTap: SoundService.instance.toggleMute,
+          onTap: AudioSettings.instance.toggleAll,
           face: muted ? _dangerFace : AppColors.surface,
           edge: muted ? _dangerEdge : _buttonEdge,
           border: muted
