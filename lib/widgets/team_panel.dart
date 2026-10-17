@@ -10,10 +10,6 @@ import 'numpad.dart';
 
 class TeamPanel extends StatefulWidget {
   final String teamLabel;
-
-  /// Not used any more (the header shows an icon instead of an emoji).
-  /// Kept so existing callers still compile; it will be removed later.
-  final String flagEmoji;
   final Color color;
   final Color lightColor;
   final int score;
@@ -41,7 +37,6 @@ class TeamPanel extends StatefulWidget {
   const TeamPanel({
     super.key,
     required this.teamLabel,
-    this.flagEmoji = '',
     required this.color,
     required this.lightColor,
     required this.score,

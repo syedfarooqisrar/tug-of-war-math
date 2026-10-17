@@ -4,12 +4,10 @@ class GameConfig {
   GameConfig._();
 
   // Defaults shown on the start screen
-  static const int defaultMaxTable = 10;
   static const int defaultRoundSeconds = 60;
   static const int defaultWinPulls = 8;
 
   // Choices offered on the start screen
-  static const List<int> tableOptions = [5, 10, 12];
   static const List<int> roundSecondOptions = [45, 60, 90];
   static const List<int> winPullOptions = [6, 8, 12];
 
@@ -78,7 +76,6 @@ class AppStrings {
   static const String appTitle = 'MathPull';
   static const String tagline = 'Solve fast. Pull the rope.';
 
-  static const String timesTables = 'Times tables';
   static const String roundLength = 'Round length';
   static const String pullsToWin = 'Pulls to win instantly';
   static const String startGame = 'Start Game';
@@ -105,15 +102,4 @@ class AppStrings {
   static const String paused = 'Paused';
   static const String resume = 'Resume';
   static const String quitGame = 'Quit game';
-}
-
-/// Sound files, relative to the assets/ folder.
-class SoundAssets {
-  SoundAssets._();
-
-  static const String correct = 'sounds/correct.wav';
-  static const String wrong = 'sounds/wrong.wav';
-  static const String tick = 'sounds/tick.wav';
-  static const String go = 'sounds/go.wav';
-  static const String win = 'sounds/win.wav';
 }
