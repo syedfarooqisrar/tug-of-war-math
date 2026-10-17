@@ -40,7 +40,6 @@ class LayoutConstants {
   static const double boardMaxWidth = 900;
   static const double boardMaxHeight = 460;
   static const double panelGap = 12;
-  static const double cardRadius = 24;
   static const double startCardWidth = 420;
   // Start screen design size (the card is scaled to fit the screen)
   static const double startRefWidth = 460;
