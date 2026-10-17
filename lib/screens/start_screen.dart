@@ -299,7 +299,7 @@ class _StartScreenState extends State<StartScreen> {
   /// second in the Team 2 red. If the name does not have two capitalized
   /// parts it is shown in one color.
   Widget _title(double size) {
-    final title = AppStrings.appTitle;
+    const title = AppStrings.appTitle;
     final cut = title.length > 1 ? title.indexOf(RegExp(r'[A-Z]'), 1) : -1;
 
     final style = AppText.heading(size: size);
