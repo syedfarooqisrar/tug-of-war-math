@@ -10,6 +10,8 @@ import 'game_screen.dart';
 import '../core/services/music_service.dart';
 import '../core/services/audio_settings.dart';
 import '../widgets/audio_toggles.dart';
+import 'package:flutter/services.dart';
+import 'about_screen.dart';
 
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
@@ -160,6 +162,12 @@ class _StartScreenState extends State<StartScreen> {
       ),
     );
 
+    // Back from the game: the status and navigation bars return.
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
+
     // Back from the game: the menu music returns.
     MusicService.instance.play(MusicTrack.menu);
   }
@@ -269,6 +277,27 @@ class _StartScreenState extends State<StartScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// A small link under the Start button.
+  Widget _aboutLink() {
+    return TextButton(
+      style: TextButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        foregroundColor: AppColors.inkMuted,
+      ),
+      onPressed: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AboutScreen()),
+      ),
+      child: Text(
+        'About & licenses',
+        style: AppText.body(
+          size: AppText.sizeSmall,
+          color: AppColors.inkMuted,
         ),
       ),
     );
@@ -385,6 +414,8 @@ class _StartScreenState extends State<StartScreen> {
                 _options(),
                 const SizedBox(height: AppSpacing.xl),
                 _startButton(),
+                const SizedBox(height: AppSpacing.sm),
+                _aboutLink(),
               ],
             ),
           ),
@@ -414,6 +445,8 @@ class _StartScreenState extends State<StartScreen> {
                       _titleBlock(trophySize: 92, titleSize: 40),
                       const SizedBox(height: 28),
                       _startButton(),
+                      const SizedBox(height: AppSpacing.sm),
+                      _aboutLink(),
                     ],
                   ),
                 ),

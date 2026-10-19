@@ -20,6 +20,7 @@ import '../widgets/win_overlay.dart';
 import '../widgets/match_point_banner.dart';
 import '../core/services/music_service.dart';
 import '../core/services/audio_settings.dart';
+import 'package:flutter/services.dart';
 
 class GameScreen extends StatefulWidget {
   final GameSettings settings;
@@ -75,6 +76,8 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    // Full-screen while playing (the bars come back in the menu).
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     controller = GameController(settings: widget.settings);
     game = TugOfWarGame();
     controller.addListener(_onControllerChanged);
