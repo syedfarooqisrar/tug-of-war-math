@@ -20,6 +20,7 @@ import '../widgets/win_overlay.dart';
 import '../widgets/match_point_banner.dart';
 import '../core/services/music_service.dart';
 import '../core/services/audio_settings.dart';
+import 'package:flutter/services.dart';
 
 class GameScreen extends StatefulWidget {
   final GameSettings settings;
@@ -75,6 +76,8 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    // Full-screen while playing (the bars come back in the menu).
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     controller = GameController(settings: widget.settings);
     game = TugOfWarGame();
     controller.addListener(_onControllerChanged);
@@ -420,7 +423,23 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  Widget _scoreboard() {
+    /// The big timer shown in the middle of the scoreboard when the buttons
+  /// are in the top row.
+  Widget _bigTimer() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.timer_outlined, size: 20, color: AppColors.inkMuted),
+        const SizedBox(width: AppSpacing.xs + 2),
+        _timerText(size: 28),
+      ],
+    );
+  }
+
+  /// Scores on the sides and the time in the middle. [withButtons] puts
+  /// pause, sound and quit next to the time (used on short screens, where
+  /// there is no room for a top row).
+  Widget _scoreboard({required bool withButtons}) {
     final team2Label = controller.hasBot ? _botLabel : AppStrings.team2;
 
     return Container(
@@ -443,28 +462,31 @@ class _GameScreenState extends State<GameScreen> {
             controller.scoreFor(1),
             AppColors.team1,
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.timer_outlined,
-                    size: 14,
-                    color: AppColors.inkMuted,
-                  ),
-                  _timerText(size: 16),
-                ],
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              _pauseButton(),
-              const SizedBox(width: AppSpacing.sm),
-              _muteButton(),
-              const SizedBox(width: AppSpacing.sm),
-              _quitButton(),
-            ],
-          ),
+          if (withButtons)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.timer_outlined,
+                      size: 14,
+                      color: AppColors.inkMuted,
+                    ),
+                    _timerText(size: 16),
+                  ],
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                _pauseButton(),
+                const SizedBox(width: AppSpacing.sm),
+                _muteButton(),
+                const SizedBox(width: AppSpacing.sm),
+                _quitButton(),
+              ],
+            )
+          else
+            _bigTimer(),
           _scoreboardChip(
             team2Label.toUpperCase(),
             controller.scoreFor(2),
@@ -541,10 +563,12 @@ class _GameScreenState extends State<GameScreen> {
 
   /// Scoreboard on top, then (Speed Race only) the shared question,
   /// then the arena.
-  Widget _arenaColumn() {
+   /// Scoreboard on top, then (Speed Race only) the shared question,
+  /// then the arena.
+  Widget _arenaColumn({required bool withButtons}) {
     return Column(
       children: [
-        _scoreboard(),
+        _scoreboard(withButtons: withButtons),
         const SizedBox(height: AppSpacing.sm),
         if (controller.isSpeedRace) ...[
           QuestionBanner(text: controller.sharedQuestion.text, fontSize: 34),
@@ -621,23 +645,58 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  Widget _title() {
+   /// The trophy and the game name.
+  Widget _titleLabel() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.emoji_events_rounded,
+          size: 22,
+          color: AppColors.gold,
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          AppStrings.appTitle,
+          style: AppText.heading(size: AppText.sizeTitle),
+        ),
+      ],
+    );
+  }
+
+  /// Top row of the wide layout: quit on the left, the title in the middle,
+  /// pause and sound on the right. It lines up with the board below.
+  Widget _header() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.emoji_events_rounded,
-            size: 22,
-            color: AppColors.gold,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            AppStrings.appTitle,
-            style: AppText.heading(size: AppText.sizeTitle),
-          ),
-        ],
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: LayoutConstants.boardMaxWidth,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _quitButton(),
+              ),
+            ),
+            _titleLabel(),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _pauseButton(),
+                    const SizedBox(width: AppSpacing.sm),
+                    _muteButton(),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -645,12 +704,28 @@ class _GameScreenState extends State<GameScreen> {
   // ---------- The layouts ----------
 
   /// Wide screens (landscape): panel | arena | panel.
+   /// Wide screens (landscape): panel | arena | panel. When there is room,
+  /// a top row holds the quit, pause and sound buttons; on short screens
+  /// the buttons stay in the scoreboard.
+   /// Wide screens (landscape): panel | arena | panel.
+  ///
+  /// On a phone the look stays as it was: the title on top, and the pause,
+  /// sound and quit buttons inside the scoreboard. On bigger screens
+  /// (tablet, laptop, web) a top row holds the buttons.
   Widget _sideBySideBoard(Size size) {
-    final showTitle = size.height >= LayoutConstants.titleMinHeight;
+    final isPhone = MediaQuery.sizeOf(context).shortestSide < 600;
+    final hasRoomForTop = size.height >= LayoutConstants.titleMinHeight;
+    final buttonsInTopRow = hasRoomForTop && !isPhone;
 
     return Column(
       children: [
-        if (showTitle) _title(),
+        if (buttonsInTopRow)
+          _header()
+        else if (hasRoomForTop)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: _titleLabel(),
+          ),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -665,7 +740,10 @@ class _GameScreenState extends State<GameScreen> {
                   children: [
                     Expanded(flex: 2, child: _teamPanel(1)),
                     const SizedBox(width: LayoutConstants.panelGap),
-                    Expanded(flex: 3, child: _arenaColumn()),
+                    Expanded(
+                      flex: 3,
+                      child: _arenaColumn(withButtons: !buttonsInTopRow),
+                    ),
                     const SizedBox(width: LayoutConstants.panelGap),
                     Expanded(flex: 2, child: _teamPanel(2)),
                   ],

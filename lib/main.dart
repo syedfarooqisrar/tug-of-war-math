@@ -11,7 +11,7 @@ class TugOfWarApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Tug of War: Mathematics',
+      title: 'MathPull',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: const Color(0xFF2461E8)),
       home: const StartScreen(),

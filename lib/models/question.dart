@@ -34,10 +34,6 @@ class Question {
     };
   }
 
-  /// Older call used by the current game code: a multiplication question.
-  /// It goes away when the game engine is updated in the next step.
-  factory Question.random({int maxTable = 10, int maxMultiplier = 10}) =>
-      _multiplication(maxTable, maxMultiplier);
 
   static int _between(int min, int max) => min + _rng.nextInt(max - min + 1);
 

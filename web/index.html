@@ -1,36 +1,45 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
+    The base href below is filled in by `flutter build web` (see the
+    `--base-href` option). Do not change it by hand.
   -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="MathPull: a fast maths game. Two players, or you against a bot, race to solve questions and pull the rope.">
+  <meta name="theme-color" content="#2563EB">
+
+  <!-- Link preview (when the web address is shared) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="MathPull">
+  <meta property="og:description" content="Solve fast. Pull the rope. A maths tug-of-war for two players or against a bot.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="mathpull">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="MathPull">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>mathpull</title>
+  <title>MathPull</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* The same soft blue as the game, so there is no white flash while
+       the app loads. */
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: linear-gradient(#D6E9FF, #F3F8FF);
+    }
+  </style>
 </head>
 <body>
   <!--
