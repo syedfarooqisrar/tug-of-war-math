@@ -9,7 +9,10 @@
     "theme_color": "#2563EB",
     "description": "Solve fast. Pull the rope. A maths tug-of-war game for two players or against a bot.",
     "lang": "en",
-    "categories": ["games", "education"],
+    "categories": [
+        "games",
+        "education"
+    ],
     "prefer_related_applications": false,
     "icons": [
         {
