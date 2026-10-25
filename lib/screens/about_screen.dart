@@ -1,11 +1,82 @@
-// 📁 FILE: lib/screens/about_screen.dart   (NEW FILE)
-// 📌 WHAT: About screen: who made the game, sound and font credits, and the open-source licenses page
+// 📁 FILE: lib/screens/about_screen.dart
+// 📌 WHAT: About screen: credits, open-source licenses and the in-app privacy policy
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../core/constants/app_constants.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chunky_button.dart';
+
+// ---------------------------------------------------------------------------
+// Privacy policy text. Keep it identical to web/privacy.html.
+// ---------------------------------------------------------------------------
+const String _privacyTitle = 'Privacy policy';
+const String _privacyUpdated = 'Last updated: 22 October 2026';
+const String _privacyCloseLabel = 'Close';
+
+const List<(String, String)> _privacySections = [
+  (
+    'In short',
+    'MathPull does not collect, store on a server, share or sell any personal '
+        'information. It has no ads, no accounts and no analytics.',
+  ),
+  (
+    'Who we are',
+    'MathPull (Android package com.farooqbuilds.mathpull) is a maths '
+        'tug-of-war game for two players or one player against a computer bot. '
+        'It is developed by Syed Farooq Israr (FarooqBuilds).',
+  ),
+  (
+    'What information we collect',
+    'None. MathPull does not ask you to create an account or sign in, and it '
+        'does not ask for your name, email address, age, location, contacts, '
+        'photos, microphone or camera. It does not use advertising, analytics, '
+        'crash reporting or any other third-party tracking service.',
+  ),
+  (
+    'What stays on your device',
+    'The app remembers only your sound and music on/off choices. This small '
+        'setting is saved on your own device (in the Android app, in the app’s '
+        'private storage; in the web version, in your browser’s local '
+        'storage). It is never sent anywhere. Game scores and questions are '
+        'used only while a match is running and are not saved.',
+  ),
+  (
+    'Internet access',
+    'The Android app works fully offline and does not request internet '
+        'permission, so it cannot send data to us or anyone else. The optional '
+        'web version is delivered by our hosting provider (Cloudflare). Like '
+        'any website, the hosting provider may process technical data such as '
+        'your IP address in order to deliver the pages. We do not receive or '
+        'use that data for any other purpose.',
+  ),
+  (
+    'Children',
+    'MathPull is designed to be suitable for everyone, including children aged '
+        '6 and over. Because the app collects no personal information from '
+        'anyone, it collects none from children either. It contains no ads, no '
+        'links that lead out of the app, no chat and no social features.',
+  ),
+  (
+    'Third parties and sharing',
+    'We do not share, sell or disclose any information to third parties, '
+        'because we do not collect any.',
+  ),
+  (
+    'Fonts and audio',
+    'The fonts (Fredoka and Nunito) and all music and sound effects are '
+        'bundled inside the app. Nothing is downloaded while you play.',
+  ),
+  (
+    'Changes to this policy',
+    'If the app ever changes in a way that affects your privacy, we will '
+        'update this policy and the date above before releasing that version.',
+  ),
+  (
+    'Contact',
+    'Questions about this policy? Email farooqbuilds@gmail.com.',
+  ),
+];
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -73,6 +144,17 @@ class _AboutScreenState extends State<AboutScreen> {
     );
   }
 
+  void _openPrivacy() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      constraints: const BoxConstraints(maxWidth: _maxWidth),
+      builder: (_) => const _PrivacySheet(),
+    );
+  }
+
   Widget _section(String title, String body) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
@@ -90,6 +172,22 @@ class _AboutScreenState extends State<AboutScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _linkButton(String label, VoidCallback onTap) {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ChunkyButton(
+        semanticLabel: label,
+        color: AppColors.surface,
+        edgeColor: _buttonEdge,
+        borderColor: AppColors.border,
+        radius: AppRadius.md,
+        onTap: onTap,
+        child: Text(label, style: AppText.body(size: 15)),
       ),
     );
   }
@@ -132,19 +230,9 @@ class _AboutScreenState extends State<AboutScreen> {
           _section(_fontsTitle, _fontsBody),
           _section(_builtTitle, _builtBody),
           const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ChunkyButton(
-              semanticLabel: _licensesButton,
-              color: AppColors.surface,
-              edgeColor: _buttonEdge,
-              borderColor: AppColors.border,
-              radius: AppRadius.md,
-              onTap: _openLicenses,
-              child: Text(_licensesButton, style: AppText.body(size: 15)),
-            ),
-          ),
+          _linkButton(_privacyTitle, _openPrivacy),
+          const SizedBox(height: AppSpacing.md),
+          _linkButton(_licensesButton, _openLicenses),
         ],
       ),
     );
@@ -204,6 +292,91 @@ class _AboutScreenState extends State<AboutScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet that shows the full privacy policy text.
+class _PrivacySheet extends StatelessWidget {
+  const _PrivacySheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.9;
+
+    return Container(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      decoration: BoxDecoration(
+        color: AppColors.paper,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppRadius.lg),
+        ),
+        border: Border.all(color: AppColors.border, width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 12, 8, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _privacyTitle,
+                    style: AppText.heading(size: AppText.sizeTitle + 2),
+                  ),
+                ),
+                IconButton(
+                  tooltip: _privacyCloseLabel,
+                  icon: const Icon(Icons.close_rounded, color: AppColors.ink),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _privacyUpdated,
+                    style: AppText.body(
+                      size: AppText.sizeSmall,
+                      color: AppColors.inkMuted,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  for (final section in _privacySections)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            section.$1,
+                            style: AppText.heading(size: AppText.sizeTitle),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            section.$2,
+                            style: AppText.body(
+                              size: AppText.sizeSmall,
+                              weight: FontWeight.w600,
+                              color: AppColors.inkMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
