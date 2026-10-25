@@ -1,9 +1,8 @@
 // 📁 FILE: lib/main.dart
-// 📌 WHAT: App entry point; starts the daily reminder manager after the first frame
+// 📌 WHAT: App entry point; starts the daily reminder manager and refreshes it when the app returns
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'core/reminder/reminder_manager.dart';
@@ -15,20 +14,35 @@ Future<void> main() async {
 
   // Not awaited: a reminder problem must never slow down or stop the app.
   unawaited(ReminderManager.instance.start());
-
-  // TEMPORARY (debug builds only, removed in step 4): shows a test notification
-  // so the permission question and the notification look can be checked.
-  if (kDebugMode) {
-    unawaited(
-      ReminderManager.instance.start().then((_) {
-        return ReminderManager.instance.sendTest();
-      }),
-    );
-  }
 }
 
-class TugOfWarApp extends StatelessWidget {
+class TugOfWarApp extends StatefulWidget {
   const TugOfWarApp({super.key});
+
+  @override
+  State<TugOfWarApp> createState() => _TugOfWarAppState();
+}
+
+class _TugOfWarAppState extends State<TugOfWarApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back to the app: plan the next 7 days of reminders again.
+    if (state == AppLifecycleState.resumed) {
+      unawaited(ReminderManager.instance.refresh());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
