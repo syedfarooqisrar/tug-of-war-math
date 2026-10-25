@@ -1,10 +1,12 @@
+# 📁 FILE: pubspec.yaml
+# 📌 WHAT: App config with the local notification packages added (version 1.1.0+2)
 name: mathpull
 description: MathPull, a two-team maths tug-of-war game for Android, iOS and Web.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.10.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -13,6 +15,9 @@ dependencies:
   google_fonts: ^6.2.1
   audioplayers: ^6.8.1
   shared_preferences: ^2.5.6
+  flutter_local_notifications: ^22.3.2
+  timezone: ^0.11.0
+  flutter_timezone: ^5.1.1
 
 dev_dependencies:
   flutter_test:

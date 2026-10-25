@@ -1,5 +1,5 @@
 // 📁 FILE: android/app/build.gradle.kts
-// 📌 WHAT: Android app build config with release signing from android/key.properties
+// 📌 WHAT: Android app build config: release signing + desugaring for local notifications
 import java.io.FileInputStream
 import java.util.Properties
 
@@ -22,6 +22,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Needed by flutter_local_notifications (scheduled notifications).
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -33,6 +35,7 @@ android {
         // Version code and name come from `version:` in pubspec.yaml (name+code).
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        multiDexEnabled = true
     }
 
     signingConfigs {
@@ -63,6 +66,10 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {
