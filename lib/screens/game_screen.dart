@@ -1,5 +1,6 @@
 // 📁 FILE: lib/screens/game_screen.dart
 // 📌 WHAT: Game screen with tactile round buttons, sticker scoreboard, point-flash ring and urgent timer pop
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import '../core/constants/app_constants.dart';
@@ -21,6 +22,7 @@ import '../widgets/match_point_banner.dart';
 import '../core/services/music_service.dart';
 import '../core/services/audio_settings.dart';
 import 'package:flutter/services.dart';
+import '../core/reminder/reminder_manager.dart';
 
 class GameScreen extends StatefulWidget {
   final GameSettings settings;
@@ -116,6 +118,9 @@ class _GameScreenState extends State<GameScreen> {
     // Let the arena celebrate for a moment before the result card appears.
     if (finished && !_resultScheduled) {
       _resultScheduled = true;
+      // The round ended (not quit): remember today for the Daily Pull row
+      // and move the next reminder to tomorrow.
+      unawaited(ReminderManager.instance.onGameFinished());
       Future.delayed(GameConfig.resultDelay, () {
         if (mounted) setState(() => _showResult = true);
       });
