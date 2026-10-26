@@ -51,7 +51,7 @@ void main() {
     });
 
     test('toList is sorted', () {
-      final log = const PlayLog(<String>{'2026-10-25', '2026-10-20', '2026-10-22'});
+      const log = PlayLog(<String>{'2026-10-25', '2026-10-20', '2026-10-22'});
       expect(log.toList(), ['2026-10-20', '2026-10-22', '2026-10-25']);
     });
   });
@@ -78,7 +78,7 @@ void main() {
     });
 
     test('marks the played days of this week only', () {
-      final log = const PlayLog(<String>{
+      const log = PlayLog(<String>{
         '2026-10-19', // Monday
         '2026-10-21', // Wednesday
         '2026-10-18', // last week's Sunday
@@ -91,7 +91,7 @@ void main() {
     });
 
     test('a new week starts empty', () {
-      final log = const PlayLog(<String>{'2026-10-19', '2026-10-21'});
+      const log = PlayLog(<String>{'2026-10-19', '2026-10-21'});
       expect(log.daysPlayedThisWeek(DateTime(2026, 10, 26)), 0);
     });
   });
