@@ -1,5 +1,5 @@
 // 📁 FILE: lib/widgets/reminder_sheet.dart
-// 📌 WHAT: Bottom sheets for the daily reminder: the settings sheet (bell button) and the friendly question after a game
+// 📌 WHAT: Bottom sheet for the daily reminder settings (opened with the bell button)
 import 'package:flutter/material.dart';
 
 import '../core/reminder/reminder_format.dart';
@@ -23,19 +23,7 @@ Future<void> showReminderSheet(BuildContext context) {
   );
 }
 
-/// Opens the friendly "Want a daily reminder?" question.
-Future<void> showReminderAskSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: Colors.transparent,
-    constraints: const BoxConstraints(maxWidth: _sheetMaxWidth),
-    builder: (_) => const _ReminderAskSheet(),
-  );
-}
-
-/// The white sticker sheet that both screens sit in.
+/// The white sticker sheet.
 class _SheetFrame extends StatelessWidget {
   const _SheetFrame({required this.child});
 
@@ -113,10 +101,6 @@ Widget _chip({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Settings sheet
-// ---------------------------------------------------------------------------
-
 class _ReminderSheet extends StatefulWidget {
   const _ReminderSheet();
 
@@ -193,7 +177,7 @@ class _ReminderSheetState extends State<_ReminderSheet> {
       listenable: _manager,
       builder: (context, _) {
         final settings = _manager.settings;
-        final enabled = settings.enabled;
+        final enabled = _manager.looksOn;
 
         return _SheetFrame(
           child: Column(
@@ -315,142 +299,6 @@ class _ReminderSheetState extends State<_ReminderSheet> {
           ),
         );
       },
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// The friendly question
-// ---------------------------------------------------------------------------
-
-class _ReminderAskSheet extends StatefulWidget {
-  const _ReminderAskSheet();
-
-  @override
-  State<_ReminderAskSheet> createState() => _ReminderAskSheetState();
-}
-
-class _ReminderAskSheetState extends State<_ReminderAskSheet> {
-  static const String _title = 'Want a daily reminder?';
-  static const String _yesLabel = 'Yes, remind me';
-  static const String _notNowLabel = 'Not now';
-  static const String _declinedHint =
-      'No problem! You can turn the reminder on from the bell on the start '
-      'screen.';
-  static const double _badgeSize = 64;
-
-  final ReminderManager _manager = ReminderManager.instance;
-  bool _busy = false;
-
-  Future<void> _yes() async {
-    if (_busy) return;
-    setState(() => _busy = true);
-
-    // Taken before the awaits, because the sheet may be gone afterwards.
-    final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.maybeOf(context);
-
-    final allowed = await _manager.enable();
-    if (!allowed) await _manager.declineAsk();
-
-    if (mounted) navigator.pop();
-    if (!allowed) {
-      messenger?.showSnackBar(const SnackBar(content: Text(_declinedHint)));
-    }
-  }
-
-  Future<void> _notNow() async {
-    if (_busy) return;
-    setState(() => _busy = true);
-
-    final navigator = Navigator.of(context);
-    await _manager.declineAsk();
-    if (mounted) navigator.pop();
-  }
-
-  Widget _badge() {
-    return Container(
-      width: _badgeSize,
-      height: _badgeSize,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.gold.withValues(alpha: 0.18),
-        border: Border.all(
-          color: AppColors.gold.withValues(alpha: 0.55),
-          width: 2,
-        ),
-      ),
-      child: const Icon(
-        Icons.notifications_active_rounded,
-        size: _badgeSize * 0.52,
-        color: AppColors.gold,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final settings = _manager.settings;
-    final time = ReminderFormat.time(settings.hour, settings.minute);
-
-    return _SheetFrame(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _badge(),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            _title,
-            textAlign: TextAlign.center,
-            style: AppText.heading(size: AppText.sizeDisplay - 4),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'One friendly nudge a day at $time. It stays on this phone, and '
-            'you can turn it off any time.',
-            textAlign: TextAlign.center,
-            style: AppText.body(
-              size: AppText.sizeSmall,
-              weight: FontWeight.w600,
-              color: AppColors.inkMuted,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          SizedBox(
-            width: double.infinity,
-            height: 62,
-            child: ChunkyButton(
-              semanticLabel: _yesLabel,
-              color: AppColors.gold,
-              edgeColor: AppColors.goldDark,
-              radius: AppRadius.md,
-              depth: 5,
-              onTap: _busy ? null : _yes,
-              child: Text(
-                _yesLabel,
-                style: AppText.heading(
-                  size: AppText.sizeTitle,
-                  color: AppColors.onGold,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ChunkyButton(
-              semanticLabel: _notNowLabel,
-              color: AppColors.surface,
-              edgeColor: _chipEdge,
-              borderColor: AppColors.border,
-              radius: AppRadius.md,
-              onTap: _busy ? null : _notNow,
-              child: Text(_notNowLabel, style: AppText.body(size: 15)),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -73,13 +73,26 @@ void main() {
     manager = ReminderManager(scheduler: scheduler, clock: () => now);
   });
 
-  test('start loads the defaults and keeps reminders off', () async {
+  test('the reminder is on by default but nothing is planned before Android allows it',
+      () async {
     await manager.start();
 
     expect(manager.isLoaded, isTrue);
-    expect(manager.settings.enabled, isFalse);
+    expect(manager.settings.enabled, isTrue);
+    expect(manager.settings.permissionAsked, isFalse);
+    expect(manager.looksOn, isTrue);
     expect(scheduler.initCalls, 1);
     expect(scheduler.plan, isEmpty);
+  });
+
+  test('when Android already allows notifications a week is planned at once',
+      () async {
+    scheduler.allowed = true;
+
+    await manager.start();
+
+    expect(scheduler.plan.length, ReminderConfig.windowDays);
+    expect(scheduler.plan.first.moment, DateTime(2026, 10, 25, 17));
   });
 
   test('enable asks for permission and plans a whole week', () async {
@@ -88,6 +101,7 @@ void main() {
     expect(ok, isTrue);
     expect(scheduler.requestCalls, 1);
     expect(manager.settings.enabled, isTrue);
+    expect(manager.settings.permissionAsked, isTrue);
     expect(scheduler.plan.length, ReminderConfig.windowDays);
     expect(scheduler.plan.first.id, ReminderConfig.firstNotificationId);
     expect(scheduler.plan.last.id,
@@ -97,7 +111,7 @@ void main() {
     expect(titles.length, ReminderConfig.windowDays);
   });
 
-  test('enable stays off when the player does not allow notifications',
+  test('enable turns the reminder off when the player does not allow it',
       () async {
     scheduler.grantOnRequest = false;
 
@@ -105,6 +119,7 @@ void main() {
 
     expect(ok, isFalse);
     expect(manager.settings.enabled, isFalse);
+    expect(manager.looksOn, isFalse);
     expect(scheduler.plan, isEmpty);
     expect((await const ReminderStore().loadSettings()).enabled, isFalse);
   });
@@ -149,34 +164,53 @@ void main() {
     await manager.disable();
 
     expect(manager.settings.enabled, isFalse);
+    expect(manager.looksOn, isFalse);
     expect(scheduler.plan, isEmpty);
     expect((await const ReminderStore().loadSettings()).enabled, isFalse);
   });
 
-  test('never asks before the first finished game', () async {
+  test('Android is asked at the first launch and today is planned', () async {
     await manager.start();
-    expect(manager.shouldAskNow, isFalse);
+    expect(scheduler.requestCalls, 0);
 
-    await manager.onGameFinished();
-    expect(manager.shouldAskNow, isTrue);
+    await manager.requestPermissionIfNeeded();
+
+    expect(scheduler.requestCalls, 1);
+    expect(manager.settings.permissionAsked, isTrue);
+    expect(manager.settings.enabled, isTrue);
+    expect(scheduler.plan.length, ReminderConfig.windowDays);
+    expect(scheduler.plan.first.moment, DateTime(2026, 10, 25, 17));
   });
 
-  test('asks at most twice and waits a week after "Not now"', () async {
+  test('Android is asked only once', () async {
     await manager.onGameFinished();
-    expect(manager.shouldAskNow, isTrue);
 
-    await manager.declineAsk();
-    expect(manager.settings.declinedCount, 1);
-    expect(manager.shouldAskNow, isFalse);
+    await manager.requestPermissionIfNeeded();
+    await manager.requestPermissionIfNeeded();
 
-    now = DateTime(2026, 11, 1, 10);
-    expect(manager.shouldAskNow, isTrue);
+    expect(scheduler.requestCalls, 1);
+  });
 
-    await manager.declineAsk();
-    expect(manager.settings.declinedCount, 2);
+  test('a refused permission turns the reminder off', () async {
+    scheduler.grantOnRequest = false;
+    await manager.onGameFinished();
 
-    now = DateTime(2027, 6, 1);
-    expect(manager.shouldAskNow, isFalse);
+    await manager.requestPermissionIfNeeded();
+
+    expect(scheduler.requestCalls, 1);
+    expect(manager.settings.enabled, isFalse);
+    expect(manager.looksOn, isFalse);
+    expect(scheduler.plan, isEmpty);
+    expect((await const ReminderStore().loadSettings()).enabled, isFalse);
+  });
+
+  test('Android is not asked when the reminder was turned off', () async {
+    await manager.disable();
+    await manager.onGameFinished();
+
+    await manager.requestPermissionIfNeeded();
+
+    expect(scheduler.requestCalls, 0);
   });
 
   test('an unsupported platform does nothing', () async {
@@ -187,14 +221,17 @@ void main() {
     expect(unsupported.initCalls, 0);
     expect(await other.enable(), isFalse);
     await other.onGameFinished();
-    expect(other.shouldAskNow, isFalse);
+    await other.requestPermissionIfNeeded();
+
+    expect(unsupported.requestCalls, 0);
+    expect(other.looksOn, isFalse);
   });
 
   test('enable fails when notifications could not be started', () async {
     scheduler.ready = false;
 
     expect(await manager.enable(), isFalse);
-    expect(manager.settings.enabled, isFalse);
+    expect(scheduler.requestCalls, 0);
   });
 
   test('the choices survive an app restart', () async {
@@ -235,5 +272,6 @@ void main() {
 
     expect(scheduler.plan, isEmpty);
     expect(manager.settings.enabled, isTrue);
+    expect(manager.looksOn, isFalse);
   });
 }

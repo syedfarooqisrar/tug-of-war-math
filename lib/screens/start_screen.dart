@@ -1,5 +1,6 @@
 // 📁 FILE: lib/screens/start_screen.dart
 // 📌 WHAT: Playful start screen: tactile chips, Daily Pull card, big gold Start button, two-color MathPull title, sticker card
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../core/layout/adaptive_layout.dart';
@@ -14,7 +15,6 @@ import 'package:flutter/services.dart';
 import 'about_screen.dart';
 import '../core/reminder/reminder_manager.dart';
 import '../widgets/daily_pull_card.dart';
-import '../widgets/reminder_sheet.dart';
 
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
@@ -43,6 +43,12 @@ class _StartScreenState extends State<StartScreen> {
     AudioSettings.instance
         .load()
         .then((_) => MusicService.instance.play(MusicTrack.menu));
+
+    // On the very first start Android asks whether MathPull may show the daily
+    // reminder (on by default at 5:00 PM). It waits until the screen is visible.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(ReminderManager.instance.requestPermissionIfNeeded());
+    });
   }
 
   /// Height of an option chip including its edge (the face is 4 less,
@@ -174,14 +180,9 @@ class _StartScreenState extends State<StartScreen> {
     // Back from the game: the menu music returns.
     MusicService.instance.play(MusicTrack.menu);
 
-    // After a finished game, kindly ask once about the daily reminder. The
-    // manager decides: only if a game was finished today, the reminder is
-    // still off, and the player was not asked too often.
-    if (!mounted) return;
-    final reminders = ReminderManager.instance;
-    if (reminders.shouldAskNow && reminders.playedToday) {
-      await showReminderAskSheet(context);
-    }
+       // Safety net: if Android could not be asked at the first start, ask now
+    // (it only ever asks once).
+    await ReminderManager.instance.requestPermissionIfNeeded();
   }
 
   // ---------- Building blocks shared by both layouts ----------

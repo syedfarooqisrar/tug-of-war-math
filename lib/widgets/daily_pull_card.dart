@@ -96,7 +96,7 @@ class DailyPullCard extends StatelessWidget {
   /// The reminder time (when on) and the round bell button.
   Widget _bell(BuildContext context, ReminderManager manager) {
     final settings = manager.settings;
-    final enabled = settings.enabled;
+        final enabled = manager.looksOn;
 
     return Row(
       mainAxisSize: MainAxisSize.min,

@@ -1,5 +1,5 @@
 // 📁 FILE: test/reminder_settings_test.dart
-// 📌 WHAT: Unit tests for the reminder settings, when to ask, and saving
+// 📌 WHAT: Unit tests for the reminder settings and saving
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mathpull/core/reminder/play_log.dart';
@@ -10,37 +10,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('ReminderSettings.canAskAgain', () {
-    final now = DateTime(2026, 10, 25, 12);
+  group('ReminderSettings', () {
+    test('is on by default at 5:00 PM', () {
+      const settings = ReminderSettings();
 
-    test('a new player can be asked', () {
-      expect(const ReminderSettings().canAskAgain(now), isTrue);
+      expect(settings.enabled, isTrue);
+      expect(settings.hour, ReminderConfig.defaultHour);
+      expect(settings.minute, ReminderConfig.defaultMinute);
+      expect(settings.permissionAsked, isFalse);
     });
 
-    test('is off by default', () {
-      expect(const ReminderSettings().enabled, isFalse);
-      expect(const ReminderSettings().hour, ReminderConfig.defaultHour);
-    });
+    test('copyWith changes only what is given', () {
+      final changed = const ReminderSettings().copyWith(hour: 18);
 
-    test('is never asked when the reminder is already on', () {
-      expect(const ReminderSettings(enabled: true).canAskAgain(now), isFalse);
-    });
-
-    test('is not asked again the same day after "Not now"', () {
-      const settings = ReminderSettings(declinedCount: 1, declinedOn: '2026-10-25');
-      expect(settings.canAskAgain(now), isFalse);
-    });
-
-    test('is not asked again after 6 days but is after 7', () {
-      const sixDays = ReminderSettings(declinedCount: 1, declinedOn: '2026-10-19');
-      const sevenDays = ReminderSettings(declinedCount: 1, declinedOn: '2026-10-18');
-      expect(sixDays.canAskAgain(now), isFalse);
-      expect(sevenDays.canAskAgain(now), isTrue);
-    });
-
-    test('is never asked a third time', () {
-      const settings = ReminderSettings(declinedCount: 2, declinedOn: '2026-01-01');
-      expect(settings.canAskAgain(now), isFalse);
+      expect(changed.hour, 18);
+      expect(changed.enabled, isTrue);
+      expect(changed.minute, ReminderConfig.defaultMinute);
+      expect(changed.permissionAsked, isFalse);
     });
   });
 
@@ -52,29 +38,26 @@ void main() {
     test('loads the defaults when nothing was saved', () async {
       final settings = await const ReminderStore().loadSettings();
 
-      expect(settings.enabled, isFalse);
+      expect(settings.enabled, isTrue);
       expect(settings.hour, ReminderConfig.defaultHour);
       expect(settings.minute, ReminderConfig.defaultMinute);
-      expect(settings.declinedCount, 0);
-      expect(settings.declinedOn, isNull);
+      expect(settings.permissionAsked, isFalse);
     });
 
     test('saves and loads the settings', () async {
       const store = ReminderStore();
       await store.saveSettings(const ReminderSettings(
-        enabled: true,
+        enabled: false,
         hour: 18,
         minute: 30,
-        declinedCount: 1,
-        declinedOn: '2026-10-20',
+        permissionAsked: true,
       ));
 
       final loaded = await store.loadSettings();
-      expect(loaded.enabled, isTrue);
+      expect(loaded.enabled, isFalse);
       expect(loaded.hour, 18);
       expect(loaded.minute, 30);
-      expect(loaded.declinedCount, 1);
-      expect(loaded.declinedOn, '2026-10-20');
+      expect(loaded.permissionAsked, isTrue);
     });
 
     test('an hour outside the allowed range is clamped on load', () async {

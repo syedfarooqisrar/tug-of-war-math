@@ -1,8 +1,6 @@
 // 📁 FILE: lib/core/reminder/reminder_manager.dart
 // 📌 WHAT: Keeps the reminder settings, the play log and the scheduled reminders in sync
 
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 
 import 'play_log.dart';
@@ -31,23 +29,27 @@ class ReminderManager extends ChangeNotifier {
   ReminderSettings _settings = const ReminderSettings();
   PlayLog _playLog = const PlayLog();
   bool _isLoaded = false;
+  bool _allowed = false;
   Future<void>? _starting;
 
   ReminderSettings get settings => _settings;
   PlayLog get playLog => _playLog;
   bool get isLoaded => _isLoaded;
   bool get isSupported => _scheduler.isSupported;
+
+  /// Whether Android currently lets the app show notifications.
+  bool get isAllowed => _allowed;
+
   bool get playedToday => _playLog.playedOn(_clock());
   List<WeekDot> get weekDots => _playLog.weekDots(_clock());
   int get daysPlayedThisWeek => _playLog.daysPlayedThisWeek(_clock());
 
-  /// True when the friendly "daily reminder?" question may be shown now.
-  /// Never before the first finished game.
-  bool get shouldAskNow =>
-      _isLoaded &&
+  /// What the bell shows: on when the reminder is on and either allowed, or
+  /// Android was not asked yet (the question comes after the first game).
+  bool get looksOn =>
       isSupported &&
-      _playLog.days.isNotEmpty &&
-      _settings.canAskAgain(_clock());
+      _settings.enabled &&
+      (_allowed || !_settings.permissionAsked);
 
   void _log(String message) {
     if (kDebugMode) debugPrint('ReminderManager: $message');
@@ -86,8 +88,10 @@ class ReminderManager extends ChangeNotifier {
   Future<void> _refresh() async {
     if (!isSupported || !_scheduler.isReady) return;
     try {
-      if (!_settings.enabled || !await _scheduler.isAllowed()) {
+      _allowed = await _scheduler.isAllowed();
+      if (!_settings.enabled || !_allowed) {
         await _scheduler.cancelAll();
+        notifyListeners();
         return;
       }
       final now = _clock();
@@ -106,19 +110,22 @@ class ReminderManager extends ChangeNotifier {
           ),
       ];
       await _scheduler.replaceAll(plan);
+      notifyListeners();
     } catch (error) {
       _log('could not plan reminders: $error');
     }
   }
 
+  /// True when notifications are allowed, asking Android if they are not.
   Future<bool> _ensureAllowed() async {
     try {
-      if (await _scheduler.isAllowed()) return true;
-      return await _scheduler.requestPermission();
+      _allowed = await _scheduler.isAllowed();
+      if (!_allowed) _allowed = await _scheduler.requestPermission();
     } catch (error) {
       _log('permission problem: $error');
-      return false;
+      _allowed = false;
     }
+    return _allowed;
   }
 
   /// Call when a game finished (not when it was quit). Remembers today and
@@ -131,22 +138,42 @@ class ReminderManager extends ChangeNotifier {
     await _refresh();
   }
 
+  /// Asks Android, once, whether the app may show notifications. It is called
+  /// when the start screen shows for the first time. Does nothing if the
+  /// reminder was turned off or if Android was already asked.
+  Future<void> requestPermissionIfNeeded() async {
+    await start();
+    final shouldAsk = _isLoaded &&
+        isSupported &&
+        _scheduler.isReady &&
+        _settings.enabled &&
+        !_settings.permissionAsked;
+    if (!shouldAsk) return;
+
+    final allowed = await _ensureAllowed();
+    _settings = _settings.copyWith(permissionAsked: true, enabled: allowed);
+    await _store.saveSettings(_settings);
+    notifyListeners();
+    await _refresh();
+  }
+
   /// Turns the reminder on. Asks Android for permission when needed.
   /// Returns false (and stays off) when the player did not allow it.
   Future<bool> enable({int? hour, int? minute}) async {
     await start();
     if (!isSupported || !_scheduler.isReady) return false;
-    if (!await _ensureAllowed()) return false;
 
+    final allowed = await _ensureAllowed();
     _settings = _settings.copyWith(
-      enabled: true,
+      enabled: allowed,
+      permissionAsked: true,
       hour: ReminderLogic.clampHour(hour ?? _settings.hour),
       minute: minute ?? _settings.minute,
     );
     await _store.saveSettings(_settings);
     notifyListeners();
     await _refresh();
-    return true;
+    return allowed;
   }
 
   Future<void> disable() async {
@@ -168,17 +195,6 @@ class ReminderManager extends ChangeNotifier {
     await _refresh();
   }
 
-  /// The player said "Not now" to the friendly question.
-  Future<void> declineAsk() async {
-    await start();
-    _settings = _settings.copyWith(
-      declinedCount: _settings.declinedCount + 1,
-      declinedOn: PlayLog.keyFor(_clock()),
-    );
-    await _store.saveSettings(_settings);
-    notifyListeners();
-  }
-
   /// Shows a notification right now. Returns false when it could not be shown.
   Future<bool> sendTest() async {
     await start();
@@ -186,10 +202,12 @@ class ReminderManager extends ChangeNotifier {
     if (!await _ensureAllowed()) return false;
     try {
       await _scheduler.showTest(ReminderMessages.pool.first);
-      return true;
     } catch (error) {
       _log('could not show the test notification: $error');
       return false;
     }
+    // Notifications are allowed now, so make sure the reminders are planned.
+    await _refresh();
+    return true;
   }
 }
