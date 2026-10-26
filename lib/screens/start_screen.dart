@@ -1,5 +1,6 @@
 // 📁 FILE: lib/screens/start_screen.dart
-// 📌 WHAT: Playful start screen: tactile chips, big gold Start button, two-color MathPull title, sticker card
+// 📌 WHAT: Playful start screen: tactile chips, Daily Pull card, big gold Start button, two-color MathPull title, sticker card
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../core/layout/adaptive_layout.dart';
@@ -12,6 +13,8 @@ import '../core/services/audio_settings.dart';
 import '../widgets/audio_toggles.dart';
 import 'package:flutter/services.dart';
 import 'about_screen.dart';
+import '../core/reminder/reminder_manager.dart';
+import '../widgets/daily_pull_card.dart';
 
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
@@ -32,14 +35,20 @@ class _StartScreenState extends State<StartScreen> {
   // Labels for the single-player options.
   static const String _playersLabel = 'Players';
   static const String _botLevelLabel = 'Bot level';
-  
-   @override
+
+  @override
   void initState() {
     super.initState();
     // Load the saved music/sound choices, then start the menu music.
     AudioSettings.instance
         .load()
         .then((_) => MusicService.instance.play(MusicTrack.menu));
+
+    // On the very first start Android asks whether MathPull may show the daily
+    // reminder (on by default at 5:00 PM). It waits until the screen is visible.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(ReminderManager.instance.requestPermissionIfNeeded());
+    });
   }
 
   /// Height of an option chip including its edge (the face is 4 less,
@@ -170,6 +179,10 @@ class _StartScreenState extends State<StartScreen> {
 
     // Back from the game: the menu music returns.
     MusicService.instance.play(MusicTrack.menu);
+
+       // Safety net: if Android could not be asked at the first start, ask now
+    // (it only ever asks once).
+    await ReminderManager.instance.requestPermissionIfNeeded();
   }
 
   // ---------- Building blocks shared by both layouts ----------
@@ -410,7 +423,9 @@ class _StartScreenState extends State<StartScreen> {
                   trophySize: 60,
                   titleSize: AppText.sizeDisplay + 4,
                 ),
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.lg),
+                const DailyPullCard(),
+                const SizedBox(height: AppSpacing.lg),
                 _options(),
                 const SizedBox(height: AppSpacing.xl),
                 _startButton(),
@@ -426,8 +441,8 @@ class _StartScreenState extends State<StartScreen> {
     );
   }
 
-  /// Wide screens (landscape): title and Start button on the left,
-  /// the options on the right.
+  /// Wide screens (landscape): title, Daily Pull and Start button on the
+  /// left, the options on the right.
   Widget _wideCard() {
     return Container(
       decoration: _cardDecoration(),
@@ -443,7 +458,9 @@ class _StartScreenState extends State<StartScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _titleBlock(trophySize: 92, titleSize: 40),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: AppSpacing.lg),
+                      const DailyPullCard(),
+                      const SizedBox(height: AppSpacing.lg),
                       _startButton(),
                       const SizedBox(height: AppSpacing.sm),
                       _aboutLink(),
@@ -462,6 +479,7 @@ class _StartScreenState extends State<StartScreen> {
       ),
     );
   }
+
   /// The main content of the start screen.
   @override
   Widget build(BuildContext context) {
@@ -514,7 +532,6 @@ class _StartScreenState extends State<StartScreen> {
                   },
                 ),
               ),
-              
             ],
           ),
         ),

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 📁 FILE: android/app/src/main/res/raw/keep.xml -->
+<!-- 📌 WHAT: Stops release shrinking from removing the notification icon -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_mathpull" />
